@@ -29,6 +29,7 @@
 
 #include "net/gnrc/netdev.h"
 #include "net/ethernet/hdr.h"
+#include "net/netstats/peer.h"
 
 #define ENABLE_DEBUG    (0)
 #include "debug.h"
@@ -40,6 +41,11 @@
 #define NETDEV_NETAPI_MSG_QUEUE_SIZE 8
 
 static void _pass_on_packet(gnrc_pktsnip_t *pkt);
+
+#ifdef MODULE_NETSTATS_PEER
+static void _process_receive_stats(gnrc_netdev_t *netdev, gnrc_pktsnip_t *pkt);
+static void _register_sender(netdev_t *dev, gnrc_pktsnip_t *pkt);
+#endif
 
 /**
  * @brief   Function called by the device driver on device events
@@ -68,19 +74,30 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
                     gnrc_pktsnip_t *pkt = gnrc_netdev->recv(gnrc_netdev);
 
                     if (pkt) {
+#ifdef MODULE_NETSTATS_PEER
+                        _process_receive_stats(gnrc_netdev, pkt);
+#endif
                         _pass_on_packet(pkt);
                     }
 
                     break;
                 }
-#ifdef MODULE_NETSTATS_L2
             case NETDEV_EVENT_TX_MEDIUM_BUSY:
+#ifdef MODULE_NETSTATS_L2
                 dev->stats.tx_failed++;
+#endif
+#ifdef MODULE_NETSTATS_PEER
+                netstats_peer_update_tx(dev, 0, 1);
+#endif
                 break;
             case NETDEV_EVENT_TX_COMPLETE:
+#ifdef MODULE_NETSTATS_L2
                 dev->stats.tx_success++;
-                break;
 #endif
+#ifdef MODULE_NETSTATS_PEER
+                netstats_peer_update_tx(dev, 1, 0);
+#endif
+                break;
             default:
                 DEBUG("gnrc_netdev: warning: unhandled event %u.\n", event);
         }
@@ -96,6 +113,49 @@ static void _pass_on_packet(gnrc_pktsnip_t *pkt)
         return;
     }
 }
+
+#ifdef MODULE_NETSTATS_PEER
+static void _process_receive_stats(gnrc_netdev_t *netdev, gnrc_pktsnip_t *pkt)
+{
+    gnrc_netif_hdr_t *hdr;
+    const uint8_t *src = NULL;
+    gnrc_pktsnip_t *netif = gnrc_pktsnip_search_type(pkt, GNRC_NETTYPE_NETIF);
+
+    if (netif != NULL) {
+        size_t src_len;
+        hdr = netif->data;
+        src = gnrc_netif_hdr_get_src_addr(hdr);
+        src_len = hdr->src_l2addr_len;
+        netstats_peer_update_rx(netdev->dev, src, src_len, hdr->rssi, hdr->lqi);
+    }
+}
+
+/* record peer if useful*/
+static void _register_sender(netdev_t *dev, gnrc_pktsnip_t *pkt)
+{
+    gnrc_netif_hdr_t *netif_hdr;
+    const uint8_t *dst = NULL;
+
+    if (pkt->type != GNRC_NETTYPE_NETIF) {
+        DEBUG("l2 stats: first header is not generic netif header\n");
+        return;
+    }
+    netif_hdr = pkt->data;
+    if (!(netif_hdr->flags & /* Only process unicast */
+          (GNRC_NETIF_HDR_FLAGS_BROADCAST | GNRC_NETIF_HDR_FLAGS_MULTICAST))) {
+        size_t dst_len;
+        DEBUG("l2 stats: recording transmission\n");
+        dst = gnrc_netif_hdr_get_dst_addr(netif_hdr);
+        dst_len = netif_hdr->dst_l2addr_len;
+        netstats_peer_record(dev, dst, dst_len);
+    }
+    else {
+        DEBUG("l2 stats: Destination is multicast or unicast, NULL recorded");
+        netstats_peer_record(dev, NULL, 0);
+    }
+    return;
+}
+#endif
 
 /**
  * @brief   Startup code and event loop of the gnrc_netdev layer
@@ -127,6 +187,8 @@ static void *_gnrc_netdev_thread(void *args)
     /* register the device to the network stack*/
     gnrc_netif_add(thread_getpid());
 
+    netstats_peer_init(dev);
+
     /* initialize low-level driver */
     dev->driver->init(dev);
 
@@ -143,6 +205,9 @@ static void *_gnrc_netdev_thread(void *args)
             case GNRC_NETAPI_MSG_TYPE_SND:
                 DEBUG("gnrc_netdev: GNRC_NETAPI_MSG_TYPE_SND received\n");
                 gnrc_pktsnip_t *pkt = msg.content.ptr;
+#ifdef MODULE_NETSTATS_PEER
+                _register_sender(dev, pkt);
+#endif
                 gnrc_netdev->send(gnrc_netdev, pkt);
                 break;
             case GNRC_NETAPI_MSG_TYPE_SET:

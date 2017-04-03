@@ -19,6 +19,7 @@
  */
 
 #include <stdint.h>
+#include "net/gnrc/netif.h"
 
 #ifndef NET_NETSTATS_H
 #define NET_NETSTATS_H
@@ -37,6 +38,14 @@ extern "C" {
 #define NETSTATS_ALL        (0xFF)
 /** @} */
 
+
+#ifndef NETSTATS_PEER_SIZE
+/**
+ * @brief   The max number of entries in the peer stats table
+ */
+#define NETSTATS_PEER_SIZE           (8)
+#endif
+
 /**
  * @brief       Global statistics struct
  */
@@ -52,6 +61,22 @@ typedef struct {
     uint32_t rx_count;          /**< received (data) packets */
     uint32_t rx_bytes;          /**< received bytes */
 } netstats_t;
+
+/**
+ * @brief       Stats per peer struct
+ */
+typedef struct netstats_peer {
+    uint8_t l2_addr[8];    /**< Link layer address of the neighbor */
+    uint8_t l2_addr_len;   /**< Length of netstats_peer::l2_addr */
+    uint8_t rssi;          /**< Average RSSI of received frames in abs([dBm]) */
+    uint8_t lqi;           /**< Average LQI of received frames */
+    uint8_t etx;           /**< ETX of this peer */
+    uint32_t tx_count;     /**< Number of sent frames to this peer */
+    uint32_t tx_failed;    /**< Number of failed transmission tries to this peer */
+    uint32_t rx_count;     /**< Number of received frames */
+    uint32_t tx_bytes;     /**< Bytes sent */
+    uint32_t rx_bytes;     /**< Bytes received */
+} netstats_peer_t;
 
 #ifdef __cplusplus
 }

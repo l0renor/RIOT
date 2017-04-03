@@ -1,0 +1,170 @@
+/*
+ * Copyright (C) Koen Zandberg <koen@bergzand.net>
+ *
+ * This file is subject to the terms and conditions of the GNU Lesser
+ * General Public License v2.1. See the file LICENSE in the top level
+ * directory for more details.
+ */
+
+/**
+ * @{
+ * @ingroup     net
+ * @file
+ * @brief       Peer level stats for netdev
+ *
+ * @author      Koen Zandberg <koen@bergzand.net>
+ * @}
+ */
+
+#include <errno.h>
+
+#include "net/netdev.h"
+#include "net/netstats/peer.h"
+
+#define ENABLE_DEBUG    (0)
+#include "debug.h"
+//static char addr_str[30];
+
+static bool l2_addr_equal(uint8_t *a, uint8_t a_len, uint8_t *b, uint8_t b_len);
+
+void netstats_peer_init(netdev_t *dev)
+{
+    memset(dev->pstats, 0, sizeof(netstats_peer_t) * NETSTATS_PEER_SIZE);
+    dev->send_index = 0;
+    dev->cb_index = 0;
+}
+
+netstats_peer_t *netstats_peer_get(netdev_t *dev, netstats_peer_t *newstats)
+{
+    netstats_peer_t *found_entry = NULL;
+    netstats_peer_t *stats = dev->pstats;
+
+    /* TODO parameter check */
+
+    for (int i = 0; i < NETSTATS_PEER_SIZE; i++) {
+        if (l2_addr_equal(stats[i].l2_addr, stats[i].l2_addr_len, newstats->l2_addr, newstats->l2_addr_len)) {
+            DEBUG("L2 peerstats: Address already registered.\n");
+            found_entry = &stats[i];
+        }
+
+        if (stats[i].l2_addr_len == 0 && !found_entry) {
+            /* found the first free entry */
+            found_entry = &stats[i];
+            break;
+        }
+    }
+    return found_entry;
+}
+
+netstats_peer_t *netstats_peer_getbymac(netdev_t *dev, const uint8_t *l2_addr, uint8_t len)
+{
+    netstats_peer_t *found_entry = NULL;
+    netstats_peer_t *stats = dev->pstats;
+
+    /* TODO parameter check */
+    for (int i = 0; i < NETSTATS_PEER_SIZE; i++) {
+        if (stats[i].l2_addr_len == 0) {
+            DEBUG("L2 peerstats: Building new entry for addr with len %d\n", len);
+            /* found the first free entry */
+            found_entry = &stats[i];
+            /* fill entry */
+            memcpy(found_entry->l2_addr, l2_addr, len);
+            found_entry->l2_addr_len = len;
+            break;
+        }
+        if (l2_addr_equal(stats[i].l2_addr, stats[i].l2_addr_len, (uint8_t *)l2_addr, len)) {
+            DEBUG("L2 peerstats: Address already registered.\n");
+            found_entry = &stats[i];
+            break;
+        }
+
+    }
+    if (found_entry == NULL) {
+        DEBUG("L2 peerstats: No entry found.\n");
+    }
+    return found_entry;
+}
+
+netstats_peer_t *netstats_peer_get_next(netstats_peer_t *first, netstats_peer_t *prev)
+{
+    prev++;                                         /* get next entry */
+    while (prev < (first + NETSTATS_PEER_SIZE)) {   /* while not reached end */
+        if (prev->l2_addr_len) {
+            return prev;
+        }
+
+        prev++;
+    }
+    return NULL;
+}
+
+void netstats_peer_record(netdev_t *dev, const uint8_t *l2_addr, uint8_t len)
+{
+    if (!(len)) {
+        /* Fill queue with a NOP */
+        dev->stats_queue[dev->send_index] = NULL;
+    }
+    else {
+        dev->stats_queue[dev->send_index] = netstats_peer_getbymac(dev, l2_addr, len);
+    }
+    dev->send_index++;
+    if (dev->send_index == 4) {
+        dev->send_index = 0;
+    }
+    return;
+}
+
+netstats_peer_t *netstats_peer_get_recorded(netdev_t *dev)
+{
+
+    netstats_peer_t *stats = dev->stats_queue[dev->cb_index];
+
+    dev->cb_index++;
+    if (dev->cb_index == 4) {
+        dev->cb_index = 0;
+    }
+    return stats;
+}
+
+
+netstats_peer_t *netstats_peer_update_tx(netdev_t *dev, uint8_t num_success, uint8_t num_failed)
+{
+    netstats_peer_t *stats = netstats_peer_get_recorded(dev);
+
+    if (stats) {
+        stats->tx_count += num_success + num_failed;
+        stats->tx_failed += num_failed;
+    }
+    return stats;
+}
+
+
+
+netstats_peer_t *netstats_peer_update_rx(netdev_t *dev, const uint8_t *l2_addr, uint8_t l2_addr_len, uint8_t rssi, uint8_t lqi)
+{
+    netstats_peer_t *stats = netstats_peer_getbymac(
+        dev, l2_addr, l2_addr_len
+        );
+
+    stats->rx_count++;
+    stats->rssi = rssi;
+    stats->lqi = lqi;
+    return 0;
+}
+
+
+static bool l2_addr_equal(uint8_t *a, uint8_t a_len, uint8_t *b, uint8_t b_len)
+{
+    bool equal = true;
+
+    if (a_len != b_len) {
+        return false;
+    }
+    for (int i = 0; i < a_len; i++) {
+        if (a[i] != b[i]) {
+            equal = false;
+        }
+    }
+    ;
+    return equal;
+}

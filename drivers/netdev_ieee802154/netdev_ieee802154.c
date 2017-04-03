@@ -133,6 +133,13 @@ int netdev_ieee802154_get(netdev_ieee802154_t *dev, netopt_t opt, void *value,
             res = sizeof(l2filter_t **);
             break;
 #endif
+#ifdef MODULE_NETSTATS_PEER
+        case NETOPT_STATS_PEER:
+            assert(max_len == sizeof(uintptr_t));
+            *((netstats_peer_t **)value) = dev->netdev.pstats;
+            res = sizeof(uintptr_t);
+            break;
+#endif
         default:
             break;
     }

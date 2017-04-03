@@ -97,6 +97,15 @@ int netdev_eth_get(netdev_t *dev, netopt_t opt, void *value, size_t max_len)
                 break;
             }
 #endif
+#ifdef MODULE_NETSTATS_PEER
+        case NETOPT_STATS_PEER:
+        {
+            assert(max_len == sizeof(uintptr_t));
+            *((netstats_peer_t **)value) = dev->pstats;
+            res = sizeof(uintptr_t);
+            break;
+        }
+#endif
         default:
             {
                 res = -ENOTSUP;

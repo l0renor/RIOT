@@ -274,6 +274,12 @@ struct netdev {
 #ifdef MODULE_L2FILTER
     l2filter_t filter[L2FILTER_LISTSIZE];   /**< link layer address filters */
 #endif
+#ifdef MODULE_NETSTATS_PEER
+    uint8_t send_index;                     /**< send index */
+    uint8_t cb_index;                       /**< callback index */
+    netstats_peer_t *stats_queue[4];        /**< send/callback mac association array */
+    netstats_peer_t pstats[NETSTATS_PEER_SIZE];
+#endif
 };
 
 /**

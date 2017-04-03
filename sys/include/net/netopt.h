@@ -219,6 +219,15 @@ typedef enum {
     NETOPT_STATS,
 
     /**
+     * @brief get statistics about sent and received packets of the device split out by peer
+     *
+     * Expects a pointer to a @ref netstats_peer_t struct that will be pointed to
+     * the corresponding @ref netstats_peer_t array of the module. Can be iterated
+     * over with the corresponding iteration function of the peer stats module.
+     */
+    NETOPT_STATS_PEER,
+
+    /**
      * @brief en/disable encryption.
      */
     NETOPT_ENCRYPTION,        /**< en/disable encryption */
