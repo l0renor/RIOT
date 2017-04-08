@@ -146,10 +146,23 @@ netstats_peer_t *netstats_peer_update_rx(netdev_t *dev, const uint8_t *l2_addr, 
         dev, l2_addr, l2_addr_len
         );
 
+    if (stats->rx_count == 0) {
+        stats->rssi = rssi;
+        stats->rssi = lqi;
+    }
+    else {
+        /* Exponential weighted moving average */
+        stats->rssi = ((uint32_t)stats->rssi *
+                       (NETSTATS_PEER_EWMA_SCALE - NETSTATS_PEER_EWMA_ALPHA) +
+                       (uint32_t)rssi * NETSTATS_PEER_EWMA_ALPHA
+                      ) / NETSTATS_PEER_EWMA_SCALE;
+        stats->lqi = ((uint32_t)stats->lqi *
+                       (NETSTATS_PEER_EWMA_SCALE - NETSTATS_PEER_EWMA_ALPHA) +
+                       (uint32_t)lqi * NETSTATS_PEER_EWMA_ALPHA
+                      ) / NETSTATS_PEER_EWMA_SCALE;
+    }
     stats->rx_count++;
-    stats->rssi = rssi;
-    stats->lqi = lqi;
-    return 0;
+    return stats;
 }
 
 
