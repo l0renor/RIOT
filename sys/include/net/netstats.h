@@ -38,13 +38,17 @@ extern "C" {
 #define NETSTATS_ALL        (0xFF)
 /** @} */
 
-
 #ifndef NETSTATS_PEER_SIZE
 /**
  * @brief   The max number of entries in the peer stats table
  */
 #define NETSTATS_PEER_SIZE           (8)
 #endif
+
+/**
+ * @brief   The queue size for tx correlation
+ */
+#define NETSTATS_PEER_QUEUE_SIZE     (4)
 
 /**
  * @brief       Global statistics struct

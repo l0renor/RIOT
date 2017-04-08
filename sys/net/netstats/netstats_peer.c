@@ -148,7 +148,7 @@ netstats_peer_t *netstats_peer_update_rx(netdev_t *dev, const uint8_t *l2_addr, 
 
     if (stats->rx_count == 0) {
         stats->rssi = rssi;
-        stats->rssi = lqi;
+        stats->lqi = lqi;
     }
     else {
         /* Exponential weighted moving average */

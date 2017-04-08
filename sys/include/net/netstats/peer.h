@@ -37,7 +37,7 @@ extern "C" {
  * @name @ref EWMA parameters
  * @{
  */
-#define NETSTATS_PEER_EWMA_SCALE            128 /**< Multiplication factor of the EWMA */
+#define NETSTATS_PEER_EWMA_SCALE            100 /**< Multiplication factor of the EWMA */
 #define NETSTATS_PEER_EWMA_ALPHA             15 /**< Alpha factor of the EWMA */
 #define NETSTATS_PEER_ETX_NOACK_PENALTY      10 /**< ETX penalty for not receiving any ACK */
 /** @} */
