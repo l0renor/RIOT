@@ -555,7 +555,7 @@ static void _isr(netdev_t *netdev)
                 }
             }
             else {
-                netdev->event_callback(netdev, NETDEV_EVENT_TX_COMPLETE);
+                netdev->event_callback(netdev, NETDEV_EVENT_TX_COMPLETE, NULL);
             }
         }
     }

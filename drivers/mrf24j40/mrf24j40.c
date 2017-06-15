@@ -163,6 +163,6 @@ void mrf24j40_tx_exec(mrf24j40_t *dev)
         mrf24j40_reg_write_short(dev, MRF24J40_REG_TXNCON, MRF24J40_TXNCON_TXNTRIG);
     }
     if (netdev->event_callback && (dev->netdev.flags & MRF24J40_OPT_TELL_TX_START)) {
-        netdev->event_callback(netdev, NETDEV_EVENT_TX_STARTED);
+        netdev->event_callback(netdev, NETDEV_EVENT_TX_STARTED, NULL);
     }
 }
