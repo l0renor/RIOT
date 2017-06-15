@@ -70,6 +70,7 @@ netstats_peer_t *netstats_peer_getbymac(netdev_t *dev, const uint8_t *l2_addr, u
             /* fill entry */
             memcpy(found_entry->l2_addr, l2_addr, len);
             found_entry->l2_addr_len = len;
+            found_entry->etx = NETSTATS_PEER_ETX_INIT * NETSTATS_PEER_ETX_DIVISOR;
             break;
         }
         if (l2_addr_equal(stats[i].l2_addr, stats[i].l2_addr_len, (uint8_t *)l2_addr, len)) {
@@ -126,14 +127,16 @@ netstats_peer_t *netstats_peer_get_recorded(netdev_t *dev)
     return stats;
 }
 
-
 netstats_peer_t *netstats_peer_update_tx(netdev_t *dev, uint8_t num_success, uint8_t num_failed)
 {
+    /* Receive transmit statistics */
+    /* Update: counters, ETX */
     netstats_peer_t *stats = netstats_peer_get_recorded(dev);
 
     if (stats) {
         stats->tx_count += num_success + num_failed;
         stats->tx_failed += num_failed;
+        netstats_peer_update_etx(stats, num_success, num_failed);
     }
     return stats;
 }
@@ -165,6 +168,24 @@ netstats_peer_t *netstats_peer_update_rx(netdev_t *dev, const uint8_t *l2_addr, 
     return stats;
 }
 
+void netstats_peer_update_etx(netstats_peer_t *stats, uint8_t success, uint8_t failures)
+{
+    uint16_t packet_etx = 0;
+    if( success == 0)
+    {
+        packet_etx = NETSTATS_PEER_ETX_NOACK_PENALTY * NETSTATS_PEER_ETX_DIVISOR;
+    }
+    else
+    {
+        packet_etx = (failures+1)* 2 * NETSTATS_PEER_ETX_DIVISOR;
+    }
+    DEBUG("L2 peerstats: Calculated ETX of %u\n", packet_etx);
+    /* Exponential weighted moving average */
+    stats->etx = ((uint32_t)stats->etx *
+                  (NETSTATS_PEER_EWMA_SCALE - NETSTATS_PEER_EWMA_ALPHA) +
+                  (uint32_t)packet_etx * NETSTATS_PEER_EWMA_ALPHA
+                  ) / NETSTATS_PEER_EWMA_SCALE;
+}
 
 static bool l2_addr_equal(uint8_t *a, uint8_t a_len, uint8_t *b, uint8_t b_len)
 {

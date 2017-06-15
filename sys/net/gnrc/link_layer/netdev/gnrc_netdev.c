@@ -88,19 +88,14 @@ static void _event_cb(netdev_t *dev, netdev_event_t event, void* context)
 #endif
 #ifdef MODULE_NETSTATS_PEER
                 if(context) {
-                    struct netdev_radio_tx_info info = context;
+                    netdev_radio_tx_info_t *info = (netdev_radio_tx_info_t*)context;
+                    /* All transmissions failed */
                     netstats_peer_update_tx(dev, 0, info->transmissions );
                 }
 #endif
             case NETDEV_EVENT_TX_MEDIUM_BUSY:
 #ifdef MODULE_NETSTATS_L2
                 dev->stats.tx_failed++;
-#endif
-#ifdef MODULE_NETSTATS_PEER
-                if(context) {
-                    struct netdev_radio_tx_info info = context;
-                    netstats_peer_update_tx(dev, 0, info->transmissions );
-                }
 #endif
                 break;
             case NETDEV_EVENT_TX_COMPLETE:
@@ -109,8 +104,9 @@ static void _event_cb(netdev_t *dev, netdev_event_t event, void* context)
 #endif
 #ifdef MODULE_NETSTATS_PEER
                 if(context) {
-                    struct netdev_radio_tx_info info = context;
-                    netstats_peer_update_tx(dev, 1, info->transmissions );
+                    netdev_radio_tx_info_t *info = (netdev_radio_tx_info_t*)context;
+                    /* One successful transmission, transmissions - 1 failed */
+                    netstats_peer_update_tx(dev, 1, info->transmissions - 1 );
                 }
 #endif
                 break;

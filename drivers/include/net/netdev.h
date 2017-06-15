@@ -247,11 +247,11 @@ struct netdev_radio_rx_info {
  * @brief Transmission status information for most radios
  *
  */
-struct netdev_radio_tx_info {
+typedef struct netdev_radio_tx_info {
     uint8_t transmissions; /**< Number of transmission attempts */
-    uint8_t failure         /**< Transmission ack status */
-    uint8_t ccafail        /**< Transmission cca status */
-};
+    uint8_t failure;       /**< Transmission ack status */
+    uint8_t ccafail;       /**< Transmission cca status */
+} netdev_radio_tx_info_t;
 
 /**
  * @brief   Forward declaration for netdev struct

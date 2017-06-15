@@ -37,11 +37,18 @@ extern "C" {
  * @name @ref EWMA parameters
  * @{
  */
-#define NETSTATS_PEER_EWMA_SCALE            100 /**< Multiplication factor of the EWMA */
+#define NETSTATS_PEER_EWMA_SCALE            128 /**< Multiplication factor of the EWMA */
 #define NETSTATS_PEER_EWMA_ALPHA             15 /**< Alpha factor of the EWMA */
-#define NETSTATS_PEER_ETX_NOACK_PENALTY      10 /**< ETX penalty for not receiving any ACK */
 /** @} */
 
+/**
+ * @name @ref ETX parameters
+ * @{
+ */
+#define NETSTATS_PEER_ETX_NOACK_PENALTY      10 /**< ETX penalty for not receiving any ACK */
+#define NETSTATS_PEER_ETX_DIVISOR           128 /**< ETX fixed point divisor (rfc 6551) */
+#define NETSTATS_PEER_ETX_INIT                2 /**< Initial ETX, assume a perfect link */
+/** @} */
 
 /**
  * @brief Initialize the peer stats
@@ -123,6 +130,8 @@ netstats_peer_t *netstats_peer_update_tx(netdev_t *dev, uint8_t num_success, uin
  * @return ptr to the updated record
  */
 netstats_peer_t *netstats_peer_update_rx(netdev_t *dev, const uint8_t *l2_addr, uint8_t l2_addr_len, uint8_t rssi, uint8_t lqi);
+
+void netstats_peer_update_etx(netstats_peer_t *stats, uint8_t success, uint8_t failures);
 
 #ifdef __cplusplus
 }
