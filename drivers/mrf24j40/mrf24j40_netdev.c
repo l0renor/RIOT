@@ -60,7 +60,7 @@ static void _irq_handler(void *arg)
     netdev_t *dev = (netdev_t *) arg;
 
     if (dev->event_callback) {
-        dev->event_callback(dev, NETDEV_EVENT_ISR);
+        dev->event_callback(dev, NETDEV_EVENT_ISR, NULL);
     }
     ((mrf24j40_t *)arg)->irq_flag = 1;
 }
@@ -535,19 +535,22 @@ static void _isr(netdev_t *netdev)
     if (dev->pending & MRF24J40_TASK_TX_READY) {
         dev->pending &= ~(MRF24J40_TASK_TX_READY);
         DEBUG("[mrf24j40] EVT - TX_END\n");
-#ifdef MODULE_NETSTATS_L2
         if (netdev->event_callback && (dev->netdev.flags & MRF24J40_OPT_TELL_TX_END)) {
             uint8_t txstat = mrf24j40_reg_read_short(dev, MRF24J40_REG_TXSTAT);
+            struct netdev_radio_tx_info info;
+            info.transmissions = (txstat >> 6) + 1; /* Number of retries + 1 for initial try */
+            info.ccafail = (txstat >> 5) & 0x01;
+            info.failure = txstat & MRF24J40_TXSTAT_TXNSTAT;
             /* transmision failed */
             if (txstat & MRF24J40_TXSTAT_TXNSTAT) {
                 /* TX_NOACK - CCAFAIL */
                 if (txstat & MRF24J40_TXSTAT_CCAFAIL) {
-                    netdev->event_callback(netdev, NETDEV_EVENT_TX_MEDIUM_BUSY);
+                    netdev->event_callback(netdev, NETDEV_EVENT_TX_MEDIUM_BUSY, &info);
                     DEBUG("[mrf24j40] TX_CHANNEL_ACCESS_FAILURE\n");
                 }
                 /* check max retries */
                 else if (txstat & MRF24J40_TXSTAT_MAX_FRAME_RETRIES) {
-                    netdev->event_callback(netdev, NETDEV_EVENT_TX_NOACK);
+                    netdev->event_callback(netdev, NETDEV_EVENT_TX_NOACK, &info);
                     DEBUG("[mrf24j40] TX NO_ACK\n");
                 }
             }
@@ -555,13 +558,12 @@ static void _isr(netdev_t *netdev)
                 netdev->event_callback(netdev, NETDEV_EVENT_TX_COMPLETE);
             }
         }
-#endif
     }
     /* Receive interrupt occured */
     if (dev->pending & MRF24J40_TASK_RX_READY) {
         DEBUG("[mrf24j40] EVT - RX_END\n");
         if ((dev->netdev.flags & MRF24J40_OPT_TELL_RX_END)) {
-            netdev->event_callback(netdev, NETDEV_EVENT_RX_COMPLETE);
+            netdev->event_callback(netdev, NETDEV_EVENT_RX_COMPLETE, NULL);
         }
         dev->pending &= ~(MRF24J40_TASK_RX_READY);
     }

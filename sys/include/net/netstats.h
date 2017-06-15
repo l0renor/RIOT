@@ -74,7 +74,7 @@ typedef struct netstats_peer {
     uint8_t l2_addr_len;   /**< Length of netstats_peer::l2_addr */
     uint8_t rssi;          /**< Average RSSI of received frames in abs([dBm]) */
     uint8_t lqi;           /**< Average LQI of received frames */
-    uint8_t etx;           /**< ETX of this peer */
+    uint8_t etx;           /**< ETX of this peer multiplied by 128 */
     uint32_t tx_count;     /**< Number of sent frames to this peer */
     uint32_t tx_failed;    /**< Number of failed transmission tries to this peer */
     uint32_t rx_count;     /**< Number of received frames */

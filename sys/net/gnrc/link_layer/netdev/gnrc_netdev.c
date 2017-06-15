@@ -52,7 +52,7 @@ static void _register_sender(netdev_t *dev, gnrc_pktsnip_t *pkt);
  *
  * @param[in] event     type of event
  */
-static void _event_cb(netdev_t *dev, netdev_event_t event)
+static void _event_cb(netdev_t *dev, netdev_event_t event, void* context)
 {
     gnrc_netdev_t *gnrc_netdev = (gnrc_netdev_t*) dev->context;
 
@@ -82,12 +82,25 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
 
                     break;
                 }
+            case NETDEV_EVENT_TX_NOACK:
+#ifdef MODULE_NETSTATS_L2
+                dev->stats.tx_failed++;
+#endif
+#ifdef MODULE_NETSTATS_PEER
+                if(context) {
+                    struct netdev_radio_tx_info info = context;
+                    netstats_peer_update_tx(dev, 0, info->transmissions );
+                }
+#endif
             case NETDEV_EVENT_TX_MEDIUM_BUSY:
 #ifdef MODULE_NETSTATS_L2
                 dev->stats.tx_failed++;
 #endif
 #ifdef MODULE_NETSTATS_PEER
-                netstats_peer_update_tx(dev, 0, 1);
+                if(context) {
+                    struct netdev_radio_tx_info info = context;
+                    netstats_peer_update_tx(dev, 0, info->transmissions );
+                }
 #endif
                 break;
             case NETDEV_EVENT_TX_COMPLETE:
@@ -95,7 +108,10 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
                 dev->stats.tx_success++;
 #endif
 #ifdef MODULE_NETSTATS_PEER
-                netstats_peer_update_tx(dev, 1, 0);
+                if(context) {
+                    struct netdev_radio_tx_info info = context;
+                    netstats_peer_update_tx(dev, 1, info->transmissions );
+                }
 #endif
                 break;
             default:

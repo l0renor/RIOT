@@ -244,6 +244,16 @@ struct netdev_radio_rx_info {
 };
 
 /**
+ * @brief Transmission status information for most radios
+ *
+ */
+struct netdev_radio_tx_info {
+    uint8_t transmissions; /**< Number of transmission attempts */
+    uint8_t failure         /**< Transmission ack status */
+    uint8_t ccafail        /**< Transmission cca status */
+};
+
+/**
  * @brief   Forward declaration for netdev struct
  */
 typedef struct netdev netdev_t;
@@ -253,7 +263,7 @@ typedef struct netdev netdev_t;
  *
  * @param[in] type          type of the event
  */
-typedef void (*netdev_event_cb_t)(netdev_t *dev, netdev_event_t event);
+typedef void (*netdev_event_cb_t)(netdev_t *dev, netdev_event_t event, void* context);
 
 /**
  * @brief Structure to hold driver state
