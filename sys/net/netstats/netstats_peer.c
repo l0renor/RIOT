@@ -21,7 +21,7 @@
 #include "net/netdev.h"
 #include "net/netstats/peer.h"
 
-#define ENABLE_DEBUG    (0)
+#define ENABLE_DEBUG    (1)
 #include "debug.h"
 //static char addr_str[30];
 
@@ -43,7 +43,6 @@ netstats_peer_t *netstats_peer_get(netdev_t *dev, netstats_peer_t *newstats)
 
     for (int i = 0; i < NETSTATS_PEER_SIZE; i++) {
         if (l2_addr_equal(stats[i].l2_addr, stats[i].l2_addr_len, newstats->l2_addr, newstats->l2_addr_len)) {
-            DEBUG("L2 peerstats: Address already registered.\n");
             found_entry = &stats[i];
         }
 
@@ -74,7 +73,6 @@ netstats_peer_t *netstats_peer_getbymac(netdev_t *dev, const uint8_t *l2_addr, u
             break;
         }
         if (l2_addr_equal(stats[i].l2_addr, stats[i].l2_addr_len, (uint8_t *)l2_addr, len)) {
-            DEBUG("L2 peerstats: Address already registered.\n");
             found_entry = &stats[i];
             break;
         }
@@ -179,12 +177,12 @@ void netstats_peer_update_etx(netstats_peer_t *stats, uint8_t success, uint8_t f
     {
         packet_etx = (failures+1)* 2 * NETSTATS_PEER_ETX_DIVISOR;
     }
-    DEBUG("L2 peerstats: Calculated ETX of %u\n", packet_etx);
     /* Exponential weighted moving average */
     stats->etx = ((uint32_t)stats->etx *
                   (NETSTATS_PEER_EWMA_SCALE - NETSTATS_PEER_EWMA_ALPHA) +
                   (uint32_t)packet_etx * NETSTATS_PEER_EWMA_ALPHA
                   ) / NETSTATS_PEER_EWMA_SCALE;
+    DEBUG("L2 peerstats: Calculated ETX of %u, new ETX: % 2.2f\n", packet_etx, stats->etx/128.0);
 }
 
 static bool l2_addr_equal(uint8_t *a, uint8_t a_len, uint8_t *b, uint8_t b_len)
