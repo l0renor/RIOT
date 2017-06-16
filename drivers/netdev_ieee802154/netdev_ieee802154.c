@@ -139,6 +139,16 @@ int netdev_ieee802154_get(netdev_ieee802154_t *dev, netopt_t opt, void *value,
             *((netstats_peer_t **)value) = dev->netdev.pstats;
             res = sizeof(uintptr_t);
             break;
+	case NETOPT_TX_POWER_AUTO:
+            assert(max_len == sizeof(netopt_enable_t));
+            if (dev->auto_power == 255) {
+                *((netopt_enable_t *)value) = NETOPT_DISABLE;
+            }
+            else {
+                *((netopt_enable_t *)value) = NETOPT_ENABLE;
+            }
+            res = sizeof(netopt_enable_t);
+            break;
 #endif
         default:
             break;
@@ -228,6 +238,19 @@ int netdev_ieee802154_set(netdev_ieee802154_t *dev, netopt_t opt, void *value,
             break;
         case NETOPT_L2FILTER_RM:
             res = l2filter_rm(dev->netdev.filter, value, len);
+            break;
+#endif
+#ifdef MODULE_NETSTATS_PEER
+        case NETOPT_TX_POWER_AUTO:
+            if ((*(bool *)value)) {
+                if (dev->auto_power == 255) {
+                    dev->auto_power = 0;
+                }
+            }
+            else {
+                    dev->auto_power = 255;
+            }
+            res = sizeof(uint16_t);
             break;
 #endif
         default:

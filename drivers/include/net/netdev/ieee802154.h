@@ -107,6 +107,7 @@ typedef struct {
     uint8_t seq;                            /**< sequence number */
     uint8_t chan;                           /**< channel */
     uint16_t flags;                         /**< flags as defined above */
+    uint8_t auto_power;
     /** @} */
 } netdev_ieee802154_t;
 
