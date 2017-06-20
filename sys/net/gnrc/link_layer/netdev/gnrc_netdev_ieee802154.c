@@ -19,6 +19,7 @@
 #include "net/l2filter.h"
 #include "net/gnrc.h"
 #include "net/ieee802154.h"
+#include "net/netstats.h"
 #include "net/netstats/peer.h"
 
 #include "net/gnrc/netdev/ieee802154.h"
@@ -159,6 +160,8 @@ static int _send(gnrc_netdev_t *gnrc_netdev, gnrc_pktsnip_t *pkt)
     gnrc_netif_hdr_t *netif_hdr;
     gnrc_pktsnip_t *vec_snip;
     netstats_peer_t *stats = NULL;
+    netdev_ieee802154_tx_settings_t tx_settings;
+    uint8_t attenuation = 0;
     const uint8_t *src, *dst = NULL;
     int res = 0;
     size_t n, src_len, dst_len;
@@ -219,27 +222,41 @@ static int _send(gnrc_netdev_t *gnrc_netdev, gnrc_pktsnip_t *pkt)
         (GNRC_NETIF_HDR_FLAGS_BROADCAST | GNRC_NETIF_HDR_FLAGS_MULTICAST)) {
             gnrc_netdev->dev->stats.tx_mcast_count++;
 #ifdef MODULE_NETSTATS_PEER
-            DEBUG("l2 stats: Destination is multicast or unicast, NULL recorded");
-            netstats_peer_record(dev, NULL, 0);
+            DEBUG("l2 stats: Destination is multicast or unicast, NULL recorded\n");
+            netstats_peer_record(netdev, NULL, 0);
 #endif
         }
         else {
             gnrc_netdev->dev->stats.tx_unicast_count++;
 #ifdef MODULE_NETSTATS_PEER
             DEBUG("l2 stats: recording transmission\n");
-            stats = netstats_peer_record(dev, dst, dst_len);
+            stats = netstats_peer_record(netdev, dst, dst_len);
 #endif
         }
 #endif
+        if (stats){
+#ifdef MODULE_GNRC_NETDEV_POWER
+            gnrc_netdev_power_t *power_control = gnrc_netdev_power_get(stats->power_control);
+            if (power_control->calc_att){
+                DEBUG("[pwrctl]: Calculating send power\n");
+                attenuation = power_control->calc_att(stats);
+            }
+            else
+            {
+                DEBUG("[pwrctl]: No calculation function defined for %u\n", stats->power_control);
+            }
+#endif
+        }
+	tx_settings.tx_attenuation = attenuation;
 #ifdef MODULE_GNRC_MAC
         if (gnrc_netdev->mac_info & GNRC_NETDEV_MAC_INFO_CSMA_ENABLED) {
             res = csma_sender_csma_ca_send(netdev, vector, n, &gnrc_netdev->csma_conf);
         }
         else {
-            res = netdev->driver->send(netdev, vector, n);
+            res = netdev->driver->send(netdev, vector, n, &tx_settings);
         }
 #else
-        res = netdev->driver->send(netdev, vector, n);
+        res = netdev->driver->send(netdev, vector, n, &tx_settings);
 #endif
     }
     else {

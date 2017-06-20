@@ -28,6 +28,7 @@
 #include "net/netdev.h"
 
 #include "net/gnrc/netdev.h"
+#include "net/gnrc/netdev/power.h"
 #include "net/ethernet/hdr.h"
 #include "net/netstats/peer.h"
 
@@ -44,7 +45,6 @@ static void _pass_on_packet(gnrc_pktsnip_t *pkt);
 
 #ifdef MODULE_NETSTATS_PEER
 static void _process_receive_stats(gnrc_netdev_t *netdev, gnrc_pktsnip_t *pkt);
-static void _register_sender(netdev_t *dev, gnrc_pktsnip_t *pkt);
 #endif
 
 /**
@@ -88,14 +88,24 @@ static void _event_cb(netdev_t *dev, netdev_event_t event, void* context)
 #endif
 #ifdef MODULE_NETSTATS_PEER
                 if(context) {
+                    netstats_peer_t *stats;
+                    gnrc_netdev_power_t *pwrctl;
                     netdev_radio_tx_info_t *info = (netdev_radio_tx_info_t*)context;
                     /* All transmissions failed */
-                    netstats_peer_update_tx(dev, 0, info->transmissions );
+                    /* TODO fix when no context is present */
+                    stats = netstats_peer_update_tx(dev, 0, info->transmissions );
+                    if (stats) {
+                        pwrctl = gnrc_netdev_power_get(stats->power_control);
+                        if (pwrctl->callback){
+                            pwrctl->callback(stats, 0, info->transmissions);
+                        }
+                    }
                 }
 #endif
             case NETDEV_EVENT_TX_MEDIUM_BUSY:
 #ifdef MODULE_NETSTATS_L2
                 dev->stats.tx_failed++;
+                netstats_peer_update_tx(dev, 0, 0 );
 #endif
                 break;
             case NETDEV_EVENT_TX_COMPLETE:
@@ -104,9 +114,17 @@ static void _event_cb(netdev_t *dev, netdev_event_t event, void* context)
 #endif
 #ifdef MODULE_NETSTATS_PEER
                 if(context) {
+                    netstats_peer_t *stats;
+                    gnrc_netdev_power_t *pwrctl;
                     netdev_radio_tx_info_t *info = (netdev_radio_tx_info_t*)context;
                     /* One successful transmission, transmissions - 1 failed */
-                    netstats_peer_update_tx(dev, 1, info->transmissions - 1 );
+                    stats = netstats_peer_update_tx(dev, 1, info->transmissions - 1 );
+                    if (stats) {
+                        pwrctl = gnrc_netdev_power_get(stats->power_control);
+                        if (pwrctl->callback){
+                            pwrctl->callback(stats, 1, info->transmissions - 1);
+                        }
+                    }
                 }
 #endif
                 break;
@@ -174,6 +192,7 @@ static void *_gnrc_netdev_thread(void *args)
     /* register the device to the network stack*/
     gnrc_netif_add(thread_getpid());
 
+    gnrc_netdev_power_init();
     netstats_peer_init(dev);
 
     /* initialize low-level driver */

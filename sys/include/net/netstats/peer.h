@@ -90,7 +90,7 @@ netstats_peer_t *netstats_peer_get_next(netstats_peer_t *first, netstats_peer_t 
  * @param[in] len       length of the L2 address
  *
  */
-void netstats_peer_record(netdev_t *dev, const uint8_t *l2_addr, uint8_t len);
+netstats_peer_t *netstats_peer_record(netdev_t *dev, const uint8_t *l2_addr, uint8_t len);
 
 /**
  * @brief Get the first available peer in the transmission queue and increment pointer.

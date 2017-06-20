@@ -223,7 +223,7 @@ static int _send(gnrc_netdev_t *gnrc_netdev, gnrc_pktsnip_t *pkt)
             gnrc_netdev->dev->stats.tx_unicast_count++;
         }
 #endif
-        res = dev->driver->send(dev, vector, n);
+        res = dev->driver->send(dev, vector, n, NULL);
     }
 
     gnrc_pktbuf_release(pkt);

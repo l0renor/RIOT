@@ -20,6 +20,7 @@
 
 #include "net/netdev.h"
 #include "net/netstats/peer.h"
+#include "net/gnrc/netdev/power.h"
 
 #define ENABLE_DEBUG    (1)
 #include "debug.h"
@@ -70,6 +71,7 @@ netstats_peer_t *netstats_peer_getbymac(netdev_t *dev, const uint8_t *l2_addr, u
             memcpy(found_entry->l2_addr, l2_addr, len);
             found_entry->l2_addr_len = len;
             found_entry->etx = NETSTATS_PEER_ETX_INIT * NETSTATS_PEER_ETX_DIVISOR;
+            found_entry->power_control = 1;
             break;
         }
         if (l2_addr_equal(stats[i].l2_addr, stats[i].l2_addr_len, (uint8_t *)l2_addr, len)) {
@@ -97,7 +99,7 @@ netstats_peer_t *netstats_peer_get_next(netstats_peer_t *first, netstats_peer_t 
     return NULL;
 }
 
-void netstats_peer_record(netdev_t *dev, const uint8_t *l2_addr, uint8_t len)
+netstats_peer_t *netstats_peer_record(netdev_t *dev, const uint8_t *l2_addr, uint8_t len)
 {
     if (!(len)) {
         /* Fill queue with a NOP */
@@ -110,7 +112,7 @@ void netstats_peer_record(netdev_t *dev, const uint8_t *l2_addr, uint8_t len)
     if (dev->send_index == 4) {
         dev->send_index = 0;
     }
-    return;
+    return dev->stats_queue[dev->send_index];
 }
 
 netstats_peer_t *netstats_peer_get_recorded(netdev_t *dev)
@@ -182,7 +184,7 @@ void netstats_peer_update_etx(netstats_peer_t *stats, uint8_t success, uint8_t f
                   (NETSTATS_PEER_EWMA_SCALE - NETSTATS_PEER_EWMA_ALPHA) +
                   (uint32_t)packet_etx * NETSTATS_PEER_EWMA_ALPHA
                   ) / NETSTATS_PEER_EWMA_SCALE;
-    DEBUG("L2 peerstats: Calculated ETX of %u, new ETX: % 2.2f\n", packet_etx, stats->etx/128.0);
+    DEBUG("L2 peerstats: Calculated ETX of %u, new ETX: % 2.2f, Attenuation used: %u\n", packet_etx, stats->etx/128.0, stats->tx_attenuation);
 }
 
 static bool l2_addr_equal(uint8_t *a, uint8_t a_len, uint8_t *b, uint8_t b_len)

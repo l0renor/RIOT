@@ -27,6 +27,7 @@
 
 #include "thread.h"
 #include "net/netstats.h"
+#include "net/gnrc/netdev/power.h"
 #include "net/netstats/peer.h"
 #include "net/ipv6/addr.h"
 #include "net/gnrc/ipv6/netif.h"
@@ -146,14 +147,14 @@ static int _netif_stats_peer(kernel_pid_t dev)
 
     gnrc_netapi_get(dev, NETOPT_STATS_PEER, 0, &stats, sizeof(&stats));
     char l2addr_str[3 * MAX_ADDR_LEN];
-    puts("L2 address                  tx send  tx failed rx received rssi lqi   etx");
-    puts("-------------------------------------------------------------------------");
+    puts("L2 address                  tx send  tx failed rx received rssi lqi   etx att mode");
+    puts("----------------------------------------------------------------------------------");
 
     for (netstats_peer_t *entry = stats;
          entry != NULL;
          entry = netstats_peer_get_next(stats, entry)) {
         if (entry->l2_addr_len > 0) {
-            printf("%-24s %10u %10u  %10u  %3u %3u % 2.2f\n",
+            printf("%-24s %10u %10u  %10u  %3u %3u % 2.2f %3u %s\n",
                    gnrc_netif_addr_to_str(l2addr_str, sizeof(l2addr_str),
                                           entry->l2_addr, entry->l2_addr_len),
                    (unsigned) entry->tx_count,
@@ -161,7 +162,9 @@ static int _netif_stats_peer(kernel_pid_t dev)
                    (unsigned) entry->rx_count,
                    (unsigned) entry->rssi,
                    (unsigned) entry->lqi,
-                   (float) entry->etx/128.0);
+                   (float) entry->etx/128.0,
+                   (unsigned) entry->tx_attenuation,
+                   gnrc_netdev_power_get(entry->power_control)->name);
         }
     }
 

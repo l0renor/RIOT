@@ -39,7 +39,7 @@
 
 #define _MAX_MHR_OVERHEAD   (25)
 
-static int _send(netdev_t *netdev, const struct iovec *vector, unsigned count);
+static int _send(netdev_t *netdev, const struct iovec *vector, unsigned count, void* info);
 static int _recv(netdev_t *netdev, void *buf, size_t len, void *info);
 static int _init(netdev_t *netdev);
 static void _isr(netdev_t *netdev);
@@ -114,7 +114,10 @@ static int _send(netdev_t *netdev, const struct iovec *vector, unsigned count, v
     if (!(dev->netdev.flags & MRF24J40_OPT_PRELOADING)) {
         if (info != NULL) {
             netdev_ieee802154_tx_settings_t *radio_settings = info;
-            mrf24j40_set_txpower(dev, radio_settings->tx_power);
+            int16_t tx_power = ((MRF24J40_TX_MIN_POWER - MRF24J40_TX_MAX_POWER) \
+                                 * radio_settings->tx_attenuation) / 255 \
+			         + MRF24J40_TX_MAX_POWER;
+            mrf24j40_set_txpower(dev, tx_power);
         }
         mrf24j40_tx_exec(dev);
     }
@@ -157,8 +160,10 @@ static int _recv(netdev_t *netdev, void *buf, size_t len, void *info)
     mrf24j40_rx_fifo_read(dev, 1, (uint8_t *)buf, pkt_len);
 
     if (info != NULL) {
-        netdev_ieee802154_tx_info_t *radio_info = info;
+        netdev_ieee802154_rx_info_t *radio_info = info;
         /* Read LQI and RSSI values from the RX fifo */
+        mrf24j40_rx_fifo_read(dev, phr + 1, &(radio_info->lqi), 1);
+        mrf24j40_rx_fifo_read(dev, phr + 2, &(radio_info->rssi), 1);
     }
 
     /* Turn on reception of packets off the air */

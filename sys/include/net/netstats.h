@@ -20,6 +20,7 @@
 
 #include <stdint.h>
 #include "net/gnrc/netif.h"
+#include "net/gnrc/netdev/power.h"
 
 #ifndef NET_NETSTATS_H
 #define NET_NETSTATS_H
@@ -80,6 +81,10 @@ typedef struct netstats_peer {
     uint32_t rx_count;     /**< Number of received frames */
     uint32_t tx_bytes;     /**< Bytes sent */
     uint32_t rx_bytes;     /**< Bytes received */
+
+    /* Power control attributes */
+    uint8_t  tx_attenuation;     /**< Current TX attenuation used for this peer */
+    uint8_t  power_control; /**< integer indicating the used power control function */
 } netstats_peer_t;
 
 #ifdef __cplusplus

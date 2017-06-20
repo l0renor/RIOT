@@ -233,6 +233,7 @@ typedef enum {
     /* expand this list if needed */
 } netdev_event_t;
 
+
 /**
  * @brief   Received packet status information for most radios
  *
@@ -257,8 +258,8 @@ typedef struct netdev_radio_tx_info {
  * @brief Transmission settings struct 
  */
 struct netdev_radio_tx_settings {
-    int8_t tx_power;
-}
+    uint8_t tx_attenuation; /**< Device independent radio power attenuation */
+};
 
 /**
  * @brief   Forward declaration for netdev struct
@@ -319,7 +320,7 @@ typedef struct netdev_driver {
      *
      * @return number of bytes sent, or `< 0` on error
      */
-    int (*send)(netdev_t *dev, const struct iovec *vector, unsigned count);
+    int (*send)(netdev_t *dev, const struct iovec *vector, unsigned count, void *info);
 
     /**
      * @brief Get a received frame

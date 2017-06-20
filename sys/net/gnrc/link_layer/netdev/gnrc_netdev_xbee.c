@@ -161,7 +161,7 @@ static int xbee_adpt_send(gnrc_netdev_t *dev, gnrc_pktsnip_t *pkt)
         }
 #endif
         DEBUG("[xbee-gnrc] send: triggering the drivers send function\n");
-        res = dev->dev->driver->send(dev->dev, vector, count);
+        res = dev->dev->driver->send(dev->dev, vector, count, NULL);
     }
     else {
         DEBUG("[xbee-gnrc] send: unable to create iovec\n");
