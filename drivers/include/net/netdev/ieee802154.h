@@ -116,6 +116,7 @@ typedef struct {
  */
 typedef struct netdev_radio_rx_info netdev_ieee802154_rx_info_t;
 
+typedef struct netdev_radio_tx_settings netdev_ieee802154_tx_settings_t;
 /**
  * @brief   Fallback function for netdev IEEE 802.15.4 devices' _get function
  *

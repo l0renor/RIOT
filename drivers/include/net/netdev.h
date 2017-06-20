@@ -254,6 +254,13 @@ typedef struct netdev_radio_tx_info {
 } netdev_radio_tx_info_t;
 
 /**
+ * @brief Transmission settings struct 
+ */
+struct netdev_radio_tx_settings {
+    int8_t tx_power;
+}
+
+/**
  * @brief   Forward declaration for netdev struct
  */
 typedef struct netdev netdev_t;
