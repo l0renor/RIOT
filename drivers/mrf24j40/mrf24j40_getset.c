@@ -277,7 +277,6 @@ void mrf24j40_set_txpower(mrf24j40_t *dev, int16_t txpower)
     txpower_reg_value = dbm_to_tx_pow[txpower];
 
     mrf24j40_reg_write_long(dev, MRF24J40_REG_RFCON3, txpower_reg_value);
-
 }
 
 uint8_t mrf24j40_get_csma_max_retries(mrf24j40_t *dev)
