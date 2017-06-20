@@ -142,31 +142,6 @@ static void _process_receive_stats(gnrc_netdev_t *netdev, gnrc_pktsnip_t *pkt)
     }
 }
 
-/* record peer if useful*/
-static void _register_sender(netdev_t *dev, gnrc_pktsnip_t *pkt)
-{
-    gnrc_netif_hdr_t *netif_hdr;
-    const uint8_t *dst = NULL;
-
-    if (pkt->type != GNRC_NETTYPE_NETIF) {
-        DEBUG("l2 stats: first header is not generic netif header\n");
-        return;
-    }
-    netif_hdr = pkt->data;
-    if (!(netif_hdr->flags & /* Only process unicast */
-          (GNRC_NETIF_HDR_FLAGS_BROADCAST | GNRC_NETIF_HDR_FLAGS_MULTICAST))) {
-        size_t dst_len;
-        DEBUG("l2 stats: recording transmission\n");
-        dst = gnrc_netif_hdr_get_dst_addr(netif_hdr);
-        dst_len = netif_hdr->dst_l2addr_len;
-        netstats_peer_record(dev, dst, dst_len);
-    }
-    else {
-        DEBUG("l2 stats: Destination is multicast or unicast, NULL recorded");
-        netstats_peer_record(dev, NULL, 0);
-    }
-    return;
-}
 #endif
 
 /**
@@ -217,9 +192,6 @@ static void *_gnrc_netdev_thread(void *args)
             case GNRC_NETAPI_MSG_TYPE_SND:
                 DEBUG("gnrc_netdev: GNRC_NETAPI_MSG_TYPE_SND received\n");
                 gnrc_pktsnip_t *pkt = msg.content.ptr;
-#ifdef MODULE_NETSTATS_PEER
-                _register_sender(dev, pkt);
-#endif
                 gnrc_netdev->send(gnrc_netdev, pkt);
                 break;
             case GNRC_NETAPI_MSG_TYPE_SET:
