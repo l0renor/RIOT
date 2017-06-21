@@ -1,4 +1,5 @@
 #include "net/gnrc/netdev/power.h"
+#include "reno.h"
 #define ENABLE_DEBUG    (0)
 #include "debug.h"
 
@@ -29,7 +30,7 @@ static uint8_t callback(netstats_peer_t* peer, uint8_t num_success, uint8_t num_
     /* additive increase in attenuation if no drops */
     if (num_failed == 0)
     {
-        att = cur_att == 255 ? cur_att : cur_att + 1;
+        att = cur_att == 255 ? cur_att : cur_att + POWER_RENO_INCREMENT;
     }
     /* Multiplicative decrease */
     /* All failed, half the attenuation */

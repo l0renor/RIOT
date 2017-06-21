@@ -23,6 +23,7 @@
 extern "C" {
 #endif
 
+#define POWER_RENO_INCREMENT 1
 /**
  * @brief   Return the address to the reno power function
  *
