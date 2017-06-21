@@ -8,6 +8,7 @@
 
 #include "static.h"
 #include "reno.h"
+#include "cubic.h"
 
 #define ENABLE_DEBUG    (0)
 #include "debug.h"
@@ -19,6 +20,7 @@ void gnrc_netdev_power_init(void)
     /* insert new power functions here */
     power_functions[0] = gnrc_netdev_power_static();
     power_functions[1] = gnrc_netdev_power_reno();
+    power_functions[2] = gnrc_netdev_power_cubic();
 }
 
 gnrc_netdev_power_t *gnrc_netdev_power_get_default(void)

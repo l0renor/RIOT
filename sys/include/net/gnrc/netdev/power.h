@@ -23,8 +23,8 @@ extern "C" {
 
 #include "net/netstats.h"
 
-#define NETDEV_POWER_FUNCTIONS_NUMOF	2
-#define NETDEV_POWER_DEFAULT_FUNC	1
+#define NETDEV_POWER_FUNCTIONS_NUMOF	3
+#define NETDEV_POWER_DEFAULT_FUNC	2
 
 /**
  * @brief Power control function representation

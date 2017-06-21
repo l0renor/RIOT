@@ -85,6 +85,9 @@ typedef struct netstats_peer {
     /* Power control attributes */
     uint8_t  tx_attenuation;     /**< Current TX attenuation used for this peer */
     uint8_t  power_control; /**< integer indicating the used power control function */
+    uint8_t  max_attenuation; /**< Maximum reached attenuation before decreasing (local maximum) */
+    uint8_t  transmissions;  /**< Number of transmissions since last decrease */
+    float  k_factor;   /**< Cubic calculated parameter */
 } netstats_peer_t;
 
 #ifdef __cplusplus
