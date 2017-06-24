@@ -41,6 +41,7 @@ typedef struct {
 
 void gnrc_netdev_power_init(void);
 gnrc_netdev_power_t *gnrc_netdev_power_get_default(void);
+uint8_t gnrc_netdev_power_get_default_func(void);
 gnrc_netdev_power_t *gnrc_netdev_power_get(uint8_t function);
 
 #ifdef __cplusplus

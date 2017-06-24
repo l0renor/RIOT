@@ -72,7 +72,7 @@ netstats_peer_t *netstats_peer_getbymac(netdev_t *dev, const uint8_t *l2_addr, u
             memcpy(found_entry->l2_addr, l2_addr, len);
             found_entry->l2_addr_len = len;
             found_entry->etx = NETSTATS_PEER_ETX_INIT * NETSTATS_PEER_ETX_DIVISOR;
-            found_entry->power_control = 2;
+            found_entry->power_control = gnrc_netdev_power_get_default_func();
             break;
         }
         if (l2_addr_equal(stats[i].l2_addr, stats[i].l2_addr_len, (uint8_t *)l2_addr, len)) {

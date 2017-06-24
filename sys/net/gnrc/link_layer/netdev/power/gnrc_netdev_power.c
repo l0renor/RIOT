@@ -28,6 +28,11 @@ gnrc_netdev_power_t *gnrc_netdev_power_get_default(void)
     return power_functions[NETDEV_POWER_DEFAULT_FUNC];
 }
 
+uint8_t gnrc_netdev_power_get_default_func(void)
+{
+    return NETDEV_POWER_DEFAULT_FUNC;
+}
+
 gnrc_netdev_power_t *gnrc_netdev_power_get(uint8_t function)
 {
     if (function >= NETDEV_POWER_FUNCTIONS_NUMOF)
