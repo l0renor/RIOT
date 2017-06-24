@@ -29,8 +29,8 @@ static uint8_t callback(netstats_peer_t* peer, uint8_t num_success, uint8_t num_
     uint16_t att = 0;
     uint8_t cur_att = peer->tx_attenuation;
     peer->transmissions++;
-    /* All failed, half the attenuation */
-    if (num_failed != 0) {
+    /* decrease when at least 2 failed */
+    if (num_failed > 0) {
        peer->transmissions = 0;
        peer->max_attenuation = cur_att;
        peer->k_factor = cbrt(cur_att * POWER_CUBIC_BETA / (1.0 * POWER_CUBIC_SCALE));
@@ -38,6 +38,8 @@ static uint8_t callback(netstats_peer_t* peer, uint8_t num_success, uint8_t num_
     /* cubic increase in attenuation */
     att = (POWER_CUBIC_SCALE / 100.0) * pow(peer->transmissions - peer->k_factor, 3) + peer->max_attenuation;
     att = att > 255 ? 255 : att;
+    if (att > cur_att && att - cur_att > POWER_CUBIC_SLEWLIMIT)
+        att = cur_att + POWER_CUBIC_SLEWLIMIT;
     DEBUG("pwrctl: New transmission power is: %u\n", att);
     peer->tx_attenuation = (uint8_t)att;
     return (uint8_t)att;
