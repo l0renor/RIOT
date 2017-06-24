@@ -18,6 +18,7 @@
 
 #include <errno.h>
 
+#include "xtimer.h"
 #include "net/netdev.h"
 #include "net/netstats/peer.h"
 #include "net/gnrc/netdev/power.h"
@@ -184,7 +185,8 @@ void netstats_peer_update_etx(netstats_peer_t *stats, uint8_t success, uint8_t f
                   (NETSTATS_PEER_EWMA_SCALE - NETSTATS_PEER_EWMA_ALPHA) +
                   (uint32_t)packet_etx * NETSTATS_PEER_EWMA_ALPHA
                   ) / NETSTATS_PEER_EWMA_SCALE;
-    DEBUG("L2 peerstats: Calculated ETX of %u, new ETX: % 2.2f, Attenuation used: %u\n", packet_etx, stats->etx/128.0, stats->tx_attenuation);
+
+    DEBUG("L2 stats: ( %lu ) Calculated ETX of %u, new ETX: % 2.2f, Attenuation used: %u\n", xtimer_now_usec(), packet_etx, stats->etx/128.0, stats->tx_attenuation);
 }
 
 static bool l2_addr_equal(uint8_t *a, uint8_t a_len, uint8_t *b, uint8_t b_len)
