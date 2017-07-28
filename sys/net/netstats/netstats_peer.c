@@ -137,7 +137,9 @@ netstats_peer_t *netstats_peer_update_tx(netdev_t *dev, uint8_t num_success, uin
     if (stats) {
         stats->tx_count += num_success + num_failed;
         stats->tx_failed += num_failed;
-        netstats_peer_update_etx(stats, num_success, num_failed);
+	if (num_success || num_failed) {
+            netstats_peer_update_etx(stats, num_success, num_failed);
+        }
     }
     return stats;
 }
@@ -186,7 +188,7 @@ void netstats_peer_update_etx(netstats_peer_t *stats, uint8_t success, uint8_t f
                   (uint32_t)packet_etx * NETSTATS_PEER_EWMA_ALPHA
                   ) / NETSTATS_PEER_EWMA_SCALE;
 
-    DEBUG("L2 stats: ( %lu ) Calculated ETX of %u, new ETX: % 2.2f, Attenuation used: %u\n", xtimer_now_usec(), packet_etx, stats->etx/128.0, stats->tx_attenuation);
+    DEBUG("L2-statuxvrzfqn: time: %lu ETX: %u, EWMA-ETX: % 2.2f, Att: %u\n", xtimer_now_usec(), packet_etx, stats->etx/128.0, stats->tx_attenuation);
 }
 
 static bool l2_addr_equal(uint8_t *a, uint8_t a_len, uint8_t *b, uint8_t b_len)
