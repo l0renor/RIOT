@@ -276,7 +276,6 @@ extern "C" {
 /** @} */
 
 /**
- * @brief   Bitfield definitions for the SOFTRST register (0x2A)
  * @name    Bitfield definitions for the SOFTRST register (0x2A)
  * @{
  */
