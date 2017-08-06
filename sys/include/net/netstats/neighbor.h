@@ -167,7 +167,7 @@ void netstats_nb_update_etx(netstats_nb_t *stats, netstats_nb_result_t result, u
  *
  * @return ptr to the updated record
  */
-netstats_nb_t *netstats_nb_update_rx(netdev_t *dev, const uint8_t *l2_addr, uint8_t l2_addr_len, uint8_t rssi, uint8_t lqi);
+netstats_nb_t *netstats_nb_update_rx(netdev_t *dev, const uint8_t *l2_addr, uint8_t l2_addr_len, int16_t rssi, uint8_t lqi);
 
 /**
  * @brief Increase the freshness of the record
