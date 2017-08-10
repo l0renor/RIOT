@@ -20,7 +20,9 @@
 
 #include <string.h>
 #include "mrhof.h"
+#include "net/eui64.h"
 #include "net/gnrc/rpl.h"
+#include "net/gnrc/ipv6/nc.h"
 #include "net/gnrc/rpl/structs.h"
 #include "net/netstats.h"
 #include "net/netstats/neighbor.h"
@@ -32,6 +34,8 @@ static uint16_t calc_rank(gnrc_rpl_parent_t *, uint16_t);
 static int which_parent(gnrc_rpl_parent_t *, gnrc_rpl_parent_t *);
 static gnrc_rpl_dodag_t *which_dodag(gnrc_rpl_dodag_t *, gnrc_rpl_dodag_t *);
 static void reset(gnrc_rpl_dodag_t *);
+
+static uint8_t l2addr_tmp[8];
 
 static gnrc_rpl_of_t gnrc_rpl_mrhof = {
     0x1,
@@ -45,15 +49,17 @@ static gnrc_rpl_of_t gnrc_rpl_mrhof = {
 };
 
 static uint8_t _mrhof_ipv6_to_mac(gnrc_rpl_parent_t *parent, uint8_t **l2addr) {
-    for (gnrc_ipv6_nc_t *entry = gnrc_ipv6_nc_get_next(NULL);
-         entry != NULL;
-         entry = gnrc_ipv6_nc_get_next(entry)) {
-        if (memcmp(&(parent->addr), &(entry->ipv6_addr), sizeof(parent->addr)) == 0) {
-           *l2addr = entry->l2_addr;
-           return entry->l2_addr_len;
-        }
+    gnrc_ipv6_nc_t *entry = gnrc_ipv6_nc_get(parent->dodag->iface, &(parent->addr));
+    if (entry) {
+        *l2addr = entry->l2_addr;
+        return entry->l2_addr_len;
+    } else {
+        memcpy(l2addr_tmp, &(parent->addr.u8[8]), sizeof(eui64_t));
+        /* Flip local administrated bit */
+        l2addr_tmp[0] ^= 0x02;
+        *l2addr = l2addr_tmp;
+        return sizeof(eui64_t);
     }
-    return 0;
 }
 
 /**
