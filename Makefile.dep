@@ -357,6 +357,10 @@ ifneq (,$(filter gnrc_slip,$(USEMODULE)))
   FEATURES_REQUIRED += periph_uart
 endif
 
+ifneq (,$(filter netstats_neighbor_%, $(USEMODULE)))
+  USEMODULE += netstats_neighbor
+endif
+
 ifneq (,$(filter od,$(USEMODULE)))
   USEMODULE += fmt
 endif
