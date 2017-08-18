@@ -198,7 +198,7 @@ extern "C" {
 /**
  * @brief   Default Objective Code Point (OF0)
  */
-#define GNRC_RPL_DEFAULT_OCP (0)
+#define GNRC_RPL_DEFAULT_OCP (1)
 
 /**
  * @brief   Default Instance ID

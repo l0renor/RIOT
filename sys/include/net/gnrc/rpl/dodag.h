@@ -43,7 +43,7 @@ extern "C" {
  * @brief   Number of RPL parents
  */
 #ifndef GNRC_RPL_PARENTS_NUMOF
-#define GNRC_RPL_PARENTS_NUMOF (3)
+#define GNRC_RPL_PARENTS_NUMOF (8)
 #endif
 
 /**
