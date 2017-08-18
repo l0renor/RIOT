@@ -93,6 +93,9 @@ extern "C" {
 #endif
 #define AT86RF2XX_REG__XAH_CTRL_1                               (0x17)
 #define AT86RF2XX_REG__FTN_CTRL                                 (0x18)
+#ifdef MODULE_AT86RF233
+#define AT86RF2XX_REG__XAH_CTRL_2                               (0x19)
+#endif
 #define AT86RF2XX_REG__PLL_CF                                   (0x1A)
 #define AT86RF2XX_REG__PLL_DCU                                  (0x1B)
 #define AT86RF2XX_REG__PART_NUM                                 (0x1C)
@@ -328,6 +331,17 @@ extern "C" {
 #define AT86RF2XX_XAH_CTRL_1__AACK_ACK_TIME                     (0x04)
 #define AT86RF2XX_XAH_CTRL_1__AACK_PROM_MODE                    (0x02)
 /** @} */
+
+/**
+ * @brief   Bitfield definitions for the XAH_CTRL_1 register
+ * @{
+ */
+#define AT86RF2XX_XAH_CTRL_2__ARET_FRAME_RETRIES_MASK           (0xF0)
+#define AT86RF2XX_XAH_CTRL_2__ARET_FRAME_RETRIES_OFFSET         (4)
+#define AT86RF2XX_XAH_CTRL_2__ARET_CSMA_RETRIES_MASK            (0x0E)
+#define AT86RF2XX_XAH_CTRL_2__ARET_CSMA_RETRIES_OFFSET          (1)
+/** @} */
+
 
 /**
  * @name    Bitfield definitions for the CSMA_SEED_1 register
