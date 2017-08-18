@@ -12,6 +12,7 @@
 #include "net/gnrc/ipv6/netif.h"
 #include "net/gnrc/netapi.h"
 #include "net/gnrc/netif.h"
+#include "net/gnrc/rpl.h"
 #include "net/ipv6/addr.h"
 #include "net/netdev.h"
 #include "net/netopt.h"
@@ -98,6 +99,16 @@ void uhcp_handle_prefix(uint8_t *prefix, uint8_t prefix_len, uint16_t lifetime, 
     print_str("gnrc_uhcpc: uhcp_handle_prefix(): configured new prefix ");
     ipv6_addr_print((ipv6_addr_t*)prefix);
     puts("/64");
+
+    gnrc_rpl_init(gnrc_wireless_interface);
+
+    gnrc_rpl_instance_t *inst = gnrc_rpl_root_init(gnrc_wireless_interface, (ipv6_addr_t*)prefix, false, false);
+    if (inst == NULL) {
+        printf("error: could not add DODAG to instance (%d)\n", gnrc_wireless_interface);
+    }
+    else {
+        print_str("gnrc_uhcpc: RPL initialized on interface with new prefix\n");
+    }
 
     if (!ipv6_addr_is_unspecified(&_prefix)) {
         gnrc_ipv6_netif_remove_addr(gnrc_wireless_interface, &_prefix);
