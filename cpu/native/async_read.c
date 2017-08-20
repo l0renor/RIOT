@@ -61,7 +61,6 @@ void native_async_read_cleanup(void) {
 }
 
 void native_async_read_continue(int fd) {
-    (void) fd;
     for (int i = 0; i < _next_index; i++) {
         if (_fds[i].fd == fd && pollers[i].child_pid) {
             kill(pollers[i].child_pid, SIGCONT);
@@ -100,7 +99,7 @@ void native_async_read_add_handler(int fd, void *arg, native_async_read_callback
     _next_index++;
 }
 
-void native_async_read_add_int_handdler(int fd, void *arg, native_async_read_callback_t handler) {
+void native_async_read_add_int_handler(int fd, void *arg, native_async_read_callback_t handler) {
     if (_next_index >= ASYNC_READ_NUMOF) {
         err(EXIT_FAILURE, "native_async_read_add_handler(): too many callbacks");
     }
