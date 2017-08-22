@@ -45,6 +45,9 @@ static void set_interface_roles(void)
             fib_add_entry(&gnrc_ipv6_fib_table, dev, defroute.u8, 16,
                     0x00, addr.u8, 16, 0,
                     (uint32_t)FIB_LIFETIME_NO_EXPIRE);
+	    /* insert dummy ncache entry */
+            uint8_t l2_addr[6] = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
+            gnrc_ipv6_nc_add(gnrc_border_interface, &defroute, l2_addr, 6, 0);
         }
         else if ((!gnrc_wireless_interface) && (is_wired != 1)) {
             gnrc_wireless_interface = dev;
@@ -99,15 +102,17 @@ void uhcp_handle_prefix(uint8_t *prefix, uint8_t prefix_len, uint16_t lifetime, 
     print_str("gnrc_uhcpc: uhcp_handle_prefix(): configured new prefix ");
     ipv6_addr_print((ipv6_addr_t*)prefix);
     puts("/64");
+    print_str("gnrc_uhcpc: Inserting dummy ncache record for the gateway\n");
 
+    LOG_WARNING("Initializing RPL on wireless interface (%d)\n", gnrc_wireless_interface);
     gnrc_rpl_init(gnrc_wireless_interface);
 
     gnrc_rpl_instance_t *inst = gnrc_rpl_root_init(gnrc_wireless_interface, (ipv6_addr_t*)prefix, false, false);
     if (inst == NULL) {
-        printf("error: could not add DODAG to instance (%d)\n", gnrc_wireless_interface);
+        LOG_ERROR("error: could not add DODAG to instance (%d)\n", gnrc_wireless_interface);
     }
     else {
-        print_str("gnrc_uhcpc: RPL initialized on interface with new prefix\n");
+        LOG_WARNING("gnrc_uhcpc: RPL initialized on interface with new prefix\n");
     }
 
     if (!ipv6_addr_is_unspecified(&_prefix)) {
