@@ -56,6 +56,38 @@
 /** @} */
 
 /**
+ * @name GPIO sysfs dir
+ * @{
+ */
+#define GPIO_SYSFS_DIR      "/sys/class/gpio"
+/** @} */
+
+/**
+ * @brief   Available SPI clock speeds
+ *
+ * The actual speed of the bus can vary to some extend, as the combination of
+ * CPU clock and available prescaler values on certain platforms may not make
+ * the exact values possible.
+ */
+#define HAVE_SPI_CLK_T
+typedef enum {
+    SPI_CLK_100KHZ =   100000U,     /**< drive the SPI bus with 100KHz clock speed */
+    SPI_CLK_400KHZ =   400000U,     /**< drive the SPI bus with 400KHz clock speed*/
+    SPI_CLK_1MHZ   =  1000000U,     /**< drive the SPI bus with 1MHz clock speed */
+    SPI_CLK_5MHZ   =  5000000U,     /**< drive the SPI bus with 5MHz clock speed */
+    SPI_CLK_10MHZ  = 10000000U      /**< drive the SPI bus with 10MHz clock speed */
+} spi_clk_t;
+
+/**
+ * @name Maximum number of GPIO supported (also highest GPIO number supported)
+ * @{
+ */
+#define GPIO_NATIVE_NUMOF   42
+/** @} */
+
+#define SPI_NUMOF	2
+#define SPI_HWCS_MASK (0xffffff00)
+/**
  * @name Timer peripheral configuration
  * @{
  */
