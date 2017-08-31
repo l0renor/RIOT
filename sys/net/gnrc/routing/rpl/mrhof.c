@@ -31,7 +31,8 @@
 #include "debug.h"
 
 static uint16_t calc_rank(gnrc_rpl_parent_t *, uint16_t);
-static int which_parent(gnrc_rpl_parent_t *, gnrc_rpl_parent_t *);
+static gnrc_rpl_parent_t *which_parent(gnrc_rpl_parent_t *, gnrc_rpl_parent_t *);
+static int parent_cmp(gnrc_rpl_parent_t *, gnrc_rpl_parent_t *);
 static gnrc_rpl_dodag_t *which_dodag(gnrc_rpl_dodag_t *, gnrc_rpl_dodag_t *);
 static void reset(gnrc_rpl_dodag_t *);
 
@@ -41,6 +42,7 @@ static gnrc_rpl_of_t gnrc_rpl_mrhof = {
     0x1,
     calc_rank,
     which_parent,
+    parent_cmp,
     which_dodag,
     reset,
     NULL,
@@ -237,13 +239,21 @@ uint16_t calc_rank(gnrc_rpl_parent_t *parent, uint16_t base_rank)
     }
 }
 
+gnrc_rpl_parent_t *which_parent(gnrc_rpl_parent_t *p1, gnrc_rpl_parent_t *p2)
+{
+    if (parent_cmp(p1, p2) > 0) {
+        return p2;
+    }
+    return p1;
+}
+
 /**
  * Decision based on
  * * If one parent is not acceptable, the other is better
  * * If one parent is not fresh, the other is better
  * * ETX
  */
-int which_parent(gnrc_rpl_parent_t *p1, gnrc_rpl_parent_t *p2)
+int parent_cmp(gnrc_rpl_parent_t *p1, gnrc_rpl_parent_t *p2)
 {
     /* Only return p2 if the rank (full etx path) is better than p1 and better
      * than the preferred parent full path etx by PARENT_SWITCH_THRESHOLD */
