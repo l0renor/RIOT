@@ -87,6 +87,9 @@ typedef enum {
 
 #define SPI_NUMOF	2
 #define SPI_HWCS_MASK (0xffffff00)
+#define PERIPH_SPI_NEEDS_TRANSFER_BYTE
+#define PERIPH_SPI_NEEDS_TRANSFER_REG
+
 /**
  * @name Timer peripheral configuration
  * @{
