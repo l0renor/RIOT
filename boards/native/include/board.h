@@ -85,6 +85,12 @@ extern mtd_dev_t *mtd0;
 #endif
 #endif
 
+#define MRF24J40_PARAM_SPI         (SPI_DEV(0))
+#define MRF24J40_PARAM_SPI_SPEED   (SPI_CLK_5MHZ)
+#define MRF24J40_PARAM_CS          (8)
+#define MRF24J40_PARAM_INT         (24)
+#define MRF24J40_PARAM_RESET       (23)
+
 #ifdef __cplusplus
 }
 #endif
