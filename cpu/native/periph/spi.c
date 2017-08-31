@@ -80,7 +80,7 @@ int spi_acquire(spi_t bus, spi_cs_t cs, spi_mode_t mode, spi_clk_t clk)
     /* lock bus */
     mutex_lock(&locks[bus]);
     if ((cs != SPI_HWCS_MASK) && (cs != SPI_CS_UNDEF)) {
-        cs = 0;
+        cs = 1;
         spidev_mode |= SPI_NO_CS;
     }
     snprintf(spidev, sizeof(spidev), "/dev/spidev%u.%u", bus, cs);
