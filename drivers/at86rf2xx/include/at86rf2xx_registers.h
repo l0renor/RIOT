@@ -93,7 +93,7 @@ extern "C" {
 #endif
 #define AT86RF2XX_REG__XAH_CTRL_1                               (0x17)
 #define AT86RF2XX_REG__FTN_CTRL                                 (0x18)
-#ifdef MODULE_AT86RF233
+#if defined(MODULE_AT86RF232) || defined(MODULE_AT86RF233)
 #define AT86RF2XX_REG__XAH_CTRL_2                               (0x19)
 #endif
 #define AT86RF2XX_REG__PLL_CF                                   (0x1A)
@@ -333,7 +333,7 @@ extern "C" {
 /** @} */
 
 /**
- * @brief   Bitfield definitions for the XAH_CTRL_1 register
+ * @name    Bitfield definitions for the XAH_CTRL_1 register
  * @{
  */
 #define AT86RF2XX_XAH_CTRL_2__ARET_FRAME_RETRIES_MASK           (0xF0)
