@@ -167,8 +167,8 @@ typedef struct {
     uint8_t pending_tx;                 /**< keep track of pending TX calls
                                              this is required to know when to
                                              return to @ref at86rf2xx_t::idle_state */
-#ifdef MODULE_AT86RF233
-    /* Only AT86RF233 supports retransmission reporting */
+#if defined(MODULE_AT86RF232) || defined(MODULE_AT86RF233)
+    /* Only AT86RF232 and RF233 supports retransmission reporting */
     uint8_t tx_retries;                 /**< Number of NOACK retransmissions */
 #endif
     /** @} */
