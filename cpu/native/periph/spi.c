@@ -36,6 +36,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
