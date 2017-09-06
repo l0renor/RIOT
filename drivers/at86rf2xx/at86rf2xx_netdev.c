@@ -288,12 +288,14 @@ static int _get(netdev_t *netdev, netopt_t opt, void *val, size_t max_len)
             *((netopt_enable_t *)val) =
                 !!(dev->netdev.flags & AT86RF2XX_OPT_CSMA);
             return sizeof(netopt_enable_t);
-#ifdef MODULE_AT86RF233
+
+#if defined(MODULE_AT86RF232) || defined(MODULE_AT86RF233)
         case NETOPT_TX_RETRIES_NEEDED:
             assert(max_len >= sizeof(uint8_t));
             *((uint8_t *)val) = dev->tx_retries;
             return sizeof(uint8_t);
 #endif
+
         default:
             /* Can still be handled in second switch */
             break;
@@ -578,7 +580,7 @@ static void _isr(netdev_t *netdev)
                 at86rf2xx_set_state(dev, dev->idle_state);
                 DEBUG("[at86rf2xx] return to state 0x%x\n", dev->idle_state);
             }
-#ifdef MODULE_AT86RF233
+#if defined(MODULE_AT86RF232) || defined(MODULE_AT86RF233)
             dev->tx_retries = at86rf2xx_reg_read(dev, AT86RF2XX_REG__XAH_CTRL_2) >>
                               AT86RF2XX_XAH_CTRL_2__ARET_FRAME_RETRIES_OFFSET;
 #endif
