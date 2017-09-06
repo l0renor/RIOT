@@ -18,9 +18,10 @@
  * @}
  */
 
+#include "assert.h"
 #include "cpu.h"
 #include "mutex.h"
-#include "assert.h"
+#include "native_internal.h"
 #include "periph/spi.h"
 #include "periph/gpio.h"
 
@@ -33,7 +34,6 @@
 #include <fcntl.h>
 #include <string.h>
 
-#include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -85,18 +85,18 @@ int spi_acquire(spi_t bus, spi_cs_t cs, spi_mode_t mode, spi_clk_t clk)
     }
     snprintf(spidev, sizeof(spidev), "/dev/spidev%u.%u", bus, cs);
     /* Open device */
-    fds[bus] = open(spidev, O_RDWR);
+    fds[bus] = real_open(spidev, O_RDWR);
     
     /* Configure SPIDEV */
-    if (ioctl(fds[bus], SPI_IOC_WR_BITS_PER_WORD, &bits) < 0) {
+    if (real_ioctl(fds[bus], SPI_IOC_WR_BITS_PER_WORD, &bits) < 0) {
         DEBUG("[SPI]: bits_per_word setup failed for %s\n", spidev);
         return SPI_NOMODE;
     }
-    if (ioctl(fds[bus], SPI_IOC_WR_MAX_SPEED_HZ, &clk) < 0) {
+    if (real_ioctl(fds[bus], SPI_IOC_WR_MAX_SPEED_HZ, &clk) < 0) {
         DEBUG("[SPI]: clock setup failed for %s\n", spidev);
         return SPI_NOCLK;
     }
-    if (ioctl(fds[bus], SPI_IOC_WR_MODE, &mode) < 0) {
+    if (real_ioctl(fds[bus], SPI_IOC_WR_MODE, &mode) < 0) {
         DEBUG("[SPI]: Mode setup failed for %s\n", spidev);
         return SPI_NOMODE;
     }
@@ -107,7 +107,7 @@ int spi_acquire(spi_t bus, spi_cs_t cs, spi_mode_t mode, spi_clk_t clk)
 /* Close the file descriptor */
 void spi_release(spi_t bus)
 {
-    close(fds[bus]);
+    real_close(fds[bus]);
     mutex_unlock(&locks[bus]);
 }
 
@@ -124,7 +124,7 @@ void spi_transfer_bytes(spi_t bus, spi_cs_t cs, bool cont,
     xfer.tx_buf = (unsigned long)out;
     xfer.rx_buf = (unsigned long)in;
     xfer.len = len;
-    ioctl(fds[bus], SPI_IOC_MESSAGE(1), &xfer);
+    real_ioctl(fds[bus], SPI_IOC_MESSAGE(1), &xfer);
     if ((!cont) && (cs != SPI_CS_UNDEF)) {
         gpio_set((gpio_t)cs);
     }
