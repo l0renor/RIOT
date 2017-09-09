@@ -73,7 +73,7 @@ typedef struct netstats_nb {
     uint8_t l2_addr_len;    /**< Length of netstats_nb::l2_addr */
     uint16_t etx;           /**< ETX of this peer */
 #ifdef MODULE_NETSTATS_NEIGHBOR_EXT
-    uint8_t rssi;           /**< Average RSSI of received frames in abs([dBm]) */
+    int16_t rssi;           /**< Average RSSI of received frames in abs([dBm]) */
     uint8_t lqi;            /**< Average LQI of received frames */
     uint32_t tx_count;      /**< Number of sent frames to this peer */
     uint32_t tx_failed;     /**< Number of failed transmission tries to this peer */
