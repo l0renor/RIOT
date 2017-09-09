@@ -139,7 +139,7 @@ netstats_nb_t *netstats_nb_update_tx(netdev_t *dev, netstats_nb_result_t result,
 }
 
 #ifdef MODULE_NETSTATS_NEIGHBOR_EXT
-netstats_nb_t *netstats_nb_update_rx(netdev_t *dev, const uint8_t *l2_addr, uint8_t l2_addr_len, uint8_t rssi, uint8_t lqi)
+netstats_nb_t *netstats_nb_update_rx(netdev_t *dev, const uint8_t *l2_addr, uint8_t l2_addr_len, int16_t rssi, uint8_t lqi)
 {
     netstats_nb_t *stats = netstats_nb_get_or_create(
         dev, l2_addr, l2_addr_len
@@ -152,9 +152,9 @@ netstats_nb_t *netstats_nb_update_rx(netdev_t *dev, const uint8_t *l2_addr, uint
         }
         else {
             /* Exponential weighted moving average */
-            stats->rssi = ((uint32_t)stats->rssi *
+            stats->rssi = ((int32_t)stats->rssi *
                            (NETSTATS_NB_EWMA_SCALE - NETSTATS_NB_EWMA_ALPHA) +
-                           (uint32_t)rssi * NETSTATS_NB_EWMA_ALPHA
+                           (int32_t)rssi * NETSTATS_NB_EWMA_ALPHA
                            ) / NETSTATS_NB_EWMA_SCALE;
             stats->lqi = ((uint32_t)stats->lqi *
                           (NETSTATS_NB_EWMA_SCALE - NETSTATS_NB_EWMA_ALPHA) +

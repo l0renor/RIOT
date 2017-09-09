@@ -173,11 +173,11 @@ static int _netif_stats_nb(kernel_pid_t dev)
            }
            printf("% 1.2f", (float) entry->etx/128.0);
 #ifdef MODULE_NETSTATS_NEIGHBOR_EXT
-           printf(" %10u %10u  %10u  %3u %3u",
+           printf(" %10u %10u  %10u  %3d %3u",
                   (unsigned) entry->tx_count,
                   (unsigned) entry->tx_failed,
                   (unsigned) entry->rx_count,
-                  (unsigned) entry->rssi,
+                  (signed)   entry->rssi,
                   (unsigned) entry->lqi);
 #endif
            printf("\n");
