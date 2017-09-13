@@ -33,6 +33,7 @@ static const char *_netopt_strmap[] = {
     [NETOPT_NID]                   = "NETOPT_NID",
     [NETOPT_IPV6_IID]              = "NETOPT_IPV6_IID",
     [NETOPT_TX_POWER]              = "NETOPT_TX_POWER",
+    [NETOPT_TX_POWER_ATT]          = "NETOPT_TX_POWER_ATT",
     [NETOPT_MAX_PACKET_SIZE]       = "NETOPT_MAX_PACKET_SIZE",
     [NETOPT_PRELOADING]            = "NETOPT_PRELOADING",
     [NETOPT_PROMISCUOUSMODE]       = "NETOPT_PROMISCUOUSMODE",

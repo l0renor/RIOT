@@ -84,6 +84,15 @@ typedef struct netstats_nb {
     uint8_t  freshness;     /**< Freshness counter */
     uint32_t last_updated;  /**< seconds timestamp of last update */
     uint32_t last_halved;   /**< seconds timestamp of last halving */
+
+    /* Power control attributes */
+#ifdef MODULE_GNRC_NETDEV_POWER
+    uint8_t  tx_attenuation;     /**< Current TX attenuation used for this peer */
+    uint8_t  power_control; /**< integer indicating the used power control function */
+    uint8_t  max_attenuation; /**< Maximum reached attenuation before decreasing (local maximum) */
+    uint8_t  transmissions;  /**< Number of transmissions since last decrease */
+    float  k_factor;   /**< Cubic calculated parameter */
+#endif
 } netstats_nb_t;
 
 #ifdef __cplusplus

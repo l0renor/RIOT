@@ -25,6 +25,9 @@
 #ifdef MODULE_NETSTATS_NEIGHBOR
 #include "net/netstats/neighbor.h"
 #endif
+#ifdef MODULE_GNRC_NETDEV_POWER
+#include "net/gnrc/netdev/power.h"
+#endif
 
 #define ENABLE_DEBUG    (0)
 #include "debug.h"
@@ -167,6 +170,7 @@ static int _send(gnrc_netdev_t *gnrc_netdev, gnrc_pktsnip_t *pkt)
     uint8_t mhr[IEEE802154_MAX_HDR_LEN];
     uint8_t flags = (uint8_t)(state->flags & NETDEV_IEEE802154_SEND_MASK);
     le_uint16_t dev_pan = byteorder_btols(byteorder_htons(state->pan));
+    netstats_nb_t *stats = NULL;
 
     flags |= IEEE802154_FCF_TYPE_DATA;
     if (pkt == NULL) {
@@ -229,10 +233,25 @@ static int _send(gnrc_netdev_t *gnrc_netdev, gnrc_pktsnip_t *pkt)
             gnrc_netdev->dev->stats.tx_unicast_count++;
 #ifdef MODULE_NETSTATS_NEIGHBOR
             DEBUG("l2 stats: recording transmission\n");
-            netstats_nb_record(netdev, dst, dst_len);
+            stats = netstats_nb_record(netdev, dst, dst_len);
 #endif
         }
 #endif
+        if (stats) {
+#ifdef MODULE_GNRC_NETDEV_POWER
+            gnrc_netdev_power_t *power_control = gnrc_netdev_power_get(stats->power_control);
+            if (power_control->calc_att){
+                DEBUG("[pwrctl]: Calculating send power\n");
+                uint8_t attenuation = power_control->calc_att(stats);
+                if (netdev->driver->set(netdev, NETOPT_TX_POWER_ATT,
+                                     &attenuation, sizeof(uint8_t)) == ENOTSUP) {
+                    DEBUG("[pwrctl]: Failed setting send power\n");
+                }
+            } else {
+                DEBUG("[pwrctl]: No calculation function defined for %u\n", stats->power_control);
+            }
+#endif
+        }
 #ifdef MODULE_GNRC_MAC
         if (gnrc_netdev->mac_info & GNRC_NETDEV_MAC_INFO_CSMA_ENABLED) {
             res = csma_sender_csma_ca_send(netdev, vector, n, &gnrc_netdev->csma_conf);

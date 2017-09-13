@@ -115,6 +115,10 @@ extern "C" {
 
 #define MRF24J40_MAX_FRAME_RETRIES      (3U)        /**< Number of frame retries (fixed) */
 
+
+#define MRF24J40_TX_MAX_POWER           (0)         /**< Max power is at 0dBm */
+#define MRF24J40_TX_MIN_POWER           (-36)         /**< Min power is at -30dBm */
+
 /**
  * @brief   struct holding all params needed for device initialization
  */

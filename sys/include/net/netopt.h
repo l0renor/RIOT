@@ -76,6 +76,8 @@ typedef enum {
     NETOPT_TX_POWER,            /**< get/set the output power for radio
                                  *   devices in dBm as int16_t in host byte
                                  *   order */
+    NETOPT_TX_POWER_ATT,        /**< Set device independent power attenuation for radio */	
+    NETOPT_TX_POWER_AUTO,       /**< enable/disable automatic transmit power tuning */
     NETOPT_MAX_PACKET_SIZE,     /**< get/set the maximum packet size a
                                  *   network module can handle as uint16_t
                                  *   in host byte order */

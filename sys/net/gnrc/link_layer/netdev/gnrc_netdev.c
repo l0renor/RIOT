@@ -28,6 +28,7 @@
 #include "net/netdev.h"
 
 #include "net/gnrc/netdev.h"
+#include "net/gnrc/netdev/power.h"
 #include "net/ethernet/hdr.h"
 
 #define ENABLE_DEBUG    (0)
@@ -70,6 +71,11 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
     }
     else {
         DEBUG("gnrc_netdev: event triggered -> %i\n", event);
+        uint8_t attenuation = 0;
+        if (dev->driver->set(dev, NETOPT_TX_POWER_ATT,
+                                &attenuation, sizeof(uint8_t)) == ENOTSUP) {
+            DEBUG("[pwrctl]: Failed setting send power\n"); 
+        }
         switch(event) {
             case NETDEV_EVENT_RX_COMPLETE:
                 {
@@ -190,11 +196,12 @@ static void *_gnrc_netdev_thread(void *args)
 
     /* register the device to the network stack*/
     gnrc_netif_add(thread_getpid());
-
 #ifdef MODULE_NETSTATS_NEIGHBOR
     netstats_nb_init(dev);
 #endif
-
+#ifdef MODULE_GNRC_NETDEV_POWER
+    gnrc_netdev_power_init();
+#endif
     /* initialize low-level driver */
     dev->driver->init(dev);
 

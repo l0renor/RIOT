@@ -20,6 +20,7 @@
 
 #include "net/netdev.h"
 #include "net/netstats/neighbor.h"
+#include "net/gnrc/netdev/power.h"
 
 #define ENABLE_DEBUG    (0)
 #include "debug.h"
@@ -40,6 +41,9 @@ void netstats_nb_create(netstats_nb_t *entry, const uint8_t *l2_addr, uint8_t l2
     memcpy(entry->l2_addr, l2_addr, l2_len);
     entry->l2_addr_len = l2_len;
     entry->etx = NETSTATS_NB_ETX_INIT * NETSTATS_NB_ETX_DIVISOR;
+#ifdef MODULE_GNRC_NETDEV_POWER
+    entry->power_control = NETDEV_POWER_DEFAULT_FUNC;
+#endif
 }
 
 /* find the oldest inactive entry to replace. Empty entries are infinity old */
@@ -94,19 +98,18 @@ netstats_nb_t *netstats_nb_get_next(netstats_nb_t *first, netstats_nb_t *prev)
     return NULL;
 }
 
-void netstats_nb_record(netdev_t *dev, const uint8_t *l2_addr, uint8_t len)
+netstats_nb_t *netstats_nb_record(netdev_t *dev, const uint8_t *l2_addr, uint8_t len)
 {
-    if (!(len)) {
-        /* Fill queue with a NOP */
-        dev->stats_queue[dev->send_index] = NULL;
+    netstats_nb_t *stats = NULL;
+    if (len) {
+        stats = netstats_nb_get_or_create(dev, l2_addr, len);
     }
-    else {
-        dev->stats_queue[dev->send_index] = netstats_nb_get_or_create(dev, l2_addr, len);
-    }
+    dev->stats_queue[dev->send_index] = stats;
     dev->send_index++;
     if (dev->send_index == 4) {
         dev->send_index = 0;
     }
+    return stats;
 }
 
 netstats_nb_t *netstats_nb_get_recorded(netdev_t *dev)
@@ -134,6 +137,12 @@ netstats_nb_t *netstats_nb_update_tx(netdev_t *dev, netstats_nb_result_t result,
 #endif
         netstats_nb_update_etx(stats, result, retries);
         netstats_nb_incr_freshness(stats);
+#ifdef MODULE_GNRC_NETDEV_POWER
+        gnrc_netdev_power_t *pwrctl = gnrc_netdev_power_get(stats->power_control);
+        if (pwrctl->callback){
+            pwrctl->callback(stats, 0, retries);
+        }
+#endif
     }
     return stats;
 }

@@ -119,7 +119,7 @@ netstats_nb_t *netstats_nb_get_next(netstats_nb_t *first, netstats_nb_t *prev);
  * @param[in] len       length of the L2 address
  *
  */
-void netstats_nb_record(netdev_t *dev, const uint8_t *l2_addr, uint8_t len);
+netstats_nb_t *netstats_nb_record(netdev_t *dev, const uint8_t *l2_addr, uint8_t len);
 
 /**
  * @brief Get the first available neighbor in the transmission queue and increment pointer.

@@ -281,7 +281,7 @@ static int _get(netdev_t *netdev, netopt_t opt, void *val, size_t max_len)
                 res = sizeof(uint16_t);
             }
             break;
-
+    
         case NETOPT_RETRANS:
             if (max_len < sizeof(uint8_t)) {
                 res = -EOVERFLOW;
@@ -443,6 +443,18 @@ static int _set(netdev_t *netdev, netopt_t opt, const void *val, size_t len)
             else {
                 mrf24j40_set_txpower(dev, *((const int16_t *)val));
                 res = sizeof(uint16_t);
+            }
+            break;
+        
+        case NETOPT_TX_POWER_ATT:
+            if (len < sizeof(uint8_t)) {
+                res = -EOVERFLOW;
+            }
+            else {
+                int16_t tx_power = ((MRF24J40_TX_MIN_POWER - MRF24J40_TX_MAX_POWER) \
+                                     * *((const uint8_t *)val) ) / 255 \
+                                   + MRF24J40_TX_MAX_POWER;
+                 mrf24j40_set_txpower(dev, tx_power);
             }
             break;
 

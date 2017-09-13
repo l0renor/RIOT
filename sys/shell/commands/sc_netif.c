@@ -37,6 +37,7 @@
 #include "net/gnrc/pktbuf.h"
 #include "net/gnrc/netif/hdr.h"
 #include "net/gnrc/sixlowpan/netif.h"
+#include "net/gnrc/netdev/power.h"
 
 #ifdef MODULE_NETSTATS
 #include "net/netstats.h"
@@ -153,10 +154,16 @@ static int _netif_stats_nb(kernel_pid_t dev)
 #ifdef MODULE_NETSTATS_NEIGHBOR_EXT
     printf("    tx send  tx failed rx received rssi lqi");
 #endif
+#ifdef MODULE_GNRC_NETDEV_POWER
+    printf(" att mode");
+#endif
     printf("\n");
     printf("-----------------------------------");
 #ifdef MODULE_NETSTATS_NEIGHBOR_EXT
     printf("-------------------------------------------");
+#endif
+#ifdef MODULE_GNRC_NETDEV_POWER
+    printf("---------");
 #endif
     printf("\n");
     for (netstats_nb_t *entry = stats;
@@ -179,6 +186,11 @@ static int _netif_stats_nb(kernel_pid_t dev)
                   (unsigned) entry->rx_count,
                   (signed)   entry->rssi,
                   (unsigned) entry->lqi);
+#endif
+#ifdef MODULE_GNRC_NETDEV_POWER
+            printf(" %3u %s",
+                   (unsigned) entry->tx_attenuation,
+                   gnrc_netdev_power_get(entry->power_control)->name);
 #endif
            printf("\n");
         }

@@ -28,6 +28,9 @@ endif
 ifneq (,$(filter netdev_test,$(USEMODULE)))
     DIRS += net/netdev_test
 endif
+ifneq (,$(filter gnrc_netdev_power,$(USEMODULE)))
+    DIRS += net/gnrc/link_layer/netdev/power
+endif
 ifneq (,$(filter icmpv6,$(USEMODULE)))
     DIRS += net/network_layer/icmpv6
 endif
