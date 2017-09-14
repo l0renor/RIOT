@@ -20,6 +20,7 @@
 
 #include "net/netdev.h"
 #include "net/netstats/neighbor.h"
+#include "utlist.h"
 
 #define ENABLE_DEBUG    (0)
 #include "debug.h"
@@ -128,12 +129,19 @@ netstats_nb_t *netstats_nb_update_tx(netdev_t *dev, netstats_nb_result_t result,
         return stats;
     }
     if (stats) {
+        netstats_nb_hook_t *hook;
 #ifdef MODULE_NETSTATS_NEIGHBOR_EXT
         stats->tx_count += retries + 1;
         stats->tx_failed += retries;
 #endif
         netstats_nb_update_etx(stats, result, retries);
         netstats_nb_incr_freshness(stats);
+        LL_FOREACH(stats->hooks, hook) {
+            if(abs(stats->etx - hook->last_etx) >= hook->threshold) {
+                hook->last_etx = stats->etx;
+                hook->callback(stats, hook->arg);
+            }
+        }
     }
     return stats;
 }

@@ -65,6 +65,7 @@ typedef struct {
     uint32_t rx_bytes;          /**< received bytes */
 } netstats_t;
 
+typedef struct netstats_nb_hook netstats_nb_hook_t;
 /**
  * @brief       Stats per peer struct
  */
@@ -84,7 +85,18 @@ typedef struct netstats_nb {
     uint8_t  freshness;     /**< Freshness counter */
     uint32_t last_updated;  /**< seconds timestamp of last update */
     uint32_t last_halved;   /**< seconds timestamp of last halving */
+    netstats_nb_hook_t *hooks; /**< notification hook */
+
 } netstats_nb_t;
+
+
+struct netstats_nb_hook {
+    netstats_nb_hook_t *next;
+    void *arg;
+    void (*callback)(netstats_nb_t*, void*);
+    uint16_t threshold; 
+    uint16_t last_etx;
+};
 
 #ifdef __cplusplus
 }
