@@ -250,6 +250,12 @@ void netstats_nb_half_freshness(netstats_nb_t *stats, timex_t *cur)
     }
 }
 
+void netstats_nb_add_callback(netstats_nb_t *stats, netstats_nb_hook_t *hook) {
+    hook->last_etx = stats->etx;
+    LL_APPEND(stats->hooks, hook);
+}
+    
+
 static bool l2_addr_equal(const uint8_t *a, uint8_t a_len, const uint8_t *b, uint8_t b_len)
 {
     if (a_len != b_len) {

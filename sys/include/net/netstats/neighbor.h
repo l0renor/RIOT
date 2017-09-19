@@ -97,6 +97,7 @@ void netstats_nb_init(netdev_t *dev);
  */
 netstats_nb_t *netstats_nb_get_or_create(netdev_t *dev, const uint8_t *l2_addr, uint8_t len);
 
+void netstats_nb_create(netstats_nb_t *entry, const uint8_t *l2_addr, uint8_t l2_len);
 /**
  * @brief Iterator over the recorded neighbors, returns the next non-zero record. NULL if none remaining
  *
@@ -195,6 +196,7 @@ bool netstats_nb_isfresh(netstats_nb_t *stats);
  */
 void netstats_nb_half_freshness(netstats_nb_t *stats, timex_t *cur);
 
+void netstats_nb_add_callback(netstats_nb_t *stats, netstats_nb_hook_t *hook);
 
 /**
  * @brief Compare the freshness of two records
