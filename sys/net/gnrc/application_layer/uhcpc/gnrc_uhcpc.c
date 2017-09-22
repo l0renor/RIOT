@@ -45,9 +45,11 @@ static void set_interface_roles(void)
             fib_add_entry(&gnrc_ipv6_fib_table, dev, defroute.u8, 16,
                     0x00, addr.u8, 16, 0,
                     (uint32_t)FIB_LIFETIME_NO_EXPIRE);
-	    /* insert dummy ncache entry */
-            uint8_t l2_addr[6] = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
-            gnrc_ipv6_nc_add(gnrc_border_interface, &defroute, l2_addr, 6, 0);
+#ifdef UHCP_GATEWAY_ADDR
+	    ipv6_addr_from_str(&addr, UHCP_GATEWAY_ADDR);
+            gnrc_ipv6_netif_add_addr(dev, &addr, 64,
+                                     GNRC_IPV6_NETIF_ADDR_FLAGS_UNICAST);
+#endif
         }
         else if ((!gnrc_wireless_interface) && (is_wired != 1)) {
             gnrc_wireless_interface = dev;
