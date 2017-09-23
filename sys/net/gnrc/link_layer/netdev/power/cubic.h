@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-#define POWER_CUBIC_BETA 5
+#define POWER_CUBIC_BETA 10
 #define POWER_CUBIC_SCALE 1
 #define POWER_CUBIC_SLEWLIMIT 40
 /**
