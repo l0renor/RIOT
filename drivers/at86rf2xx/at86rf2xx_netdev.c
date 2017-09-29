@@ -580,8 +580,9 @@ static void _isr(netdev_t *netdev)
                 at86rf2xx_set_state(dev, dev->idle_state);
                 DEBUG("[at86rf2xx] return to state 0x%x\n", dev->idle_state);
             }
-#if defined(MODULE_AT86RF232) || defined(MODULE_AT86RF233)
-            dev->tx_retries = at86rf2xx_reg_read(dev, AT86RF2XX_REG__XAH_CTRL_2) >>
+#ifdef AT86RF2XX_XAH_CTRL_2__ARET_FRAME_RETRIES_OFFSET
+            dev->tx_retries = ( at86rf2xx_reg_read(dev, AT86RF2XX_REG__XAH_CTRL_2) &
+                                AT86RF2XX_XAH_CTRL_2__ARET_FRAME_RETRIES_MASK ) >>
                               AT86RF2XX_XAH_CTRL_2__ARET_FRAME_RETRIES_OFFSET;
 #endif
 
