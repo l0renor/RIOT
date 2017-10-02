@@ -54,6 +54,7 @@ static int fds[SPI_NUMOF];
 /* Initialize SPI bus, probably only check if it exists */
 void spi_init(spi_t bus)
 {
+    (void)bus;
     assert(bus < SPI_NUMOF);
 }
 
