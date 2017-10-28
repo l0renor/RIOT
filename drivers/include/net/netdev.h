@@ -202,6 +202,9 @@ extern "C" {
 #ifdef MODULE_NETSTATS_L2
 #include "net/netstats.h"
 #endif
+#ifdef MODULE_NETSTATS_NEIGHBOR
+#include "cib.h"
+#endif
 #ifdef MODULE_L2FILTER
 #include "net/l2filter.h"
 #endif
@@ -282,10 +285,9 @@ struct netdev {
     l2filter_t filter[L2FILTER_LISTSIZE];   /**< link layer address filters */
 #endif
 #ifdef MODULE_NETSTATS_NEIGHBOR
-    uint8_t send_index;                                     /**< send index */
-    uint8_t cb_index;                                       /**< callback index */
+    cib_t stats_idx;                                     /**< CIB for the tx correlation */
     netstats_nb_t *stats_queue[NETSTATS_NB_QUEUE_SIZE]; /**< send/callback mac association array */
-    netstats_nb_t pstats[NETSTATS_NB_SIZE];
+    netstats_nb_t pstats[NETSTATS_NB_SIZE];             /**< Per neighbor statistics array */
 #endif
 };
 
