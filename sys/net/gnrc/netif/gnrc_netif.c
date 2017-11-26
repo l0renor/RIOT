@@ -1210,6 +1210,7 @@ static void *_gnrc_netif_thread(void *args)
     gnrc_netif_acquire(netif);
     dev = netif->dev;
     netif->pid = sched_active_pid;
+    netif->l2id = 5;
     /* setup the link-layer's message queue */
     msg_init_queue(msg_queue, _NETIF_NETAPI_MSG_QUEUE_SIZE);
     /* register the event callback with the device driver */

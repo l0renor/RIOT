@@ -45,7 +45,20 @@ typedef struct __attribute__((packed)) {
     uint8_t dst[ETHERNET_ADDR_LEN];     /**< destination address */
     uint8_t src[ETHERNET_ADDR_LEN];     /**< source address */
     network_uint16_t type;              /**< ether type (see @ref net_ethertype) */
+    network_uint16_t tci;               /**< 802.1q Tag Control Information */
+    network_uint16_t next_type;         /**< ether type when type==0x8100 */
 } ethernet_hdr_t;
+
+/**
+ * @brief   802.1Q tag to extend the ethernet header
+ *
+ * This assumes that the type field of the preceding @ref ethernet_hdr_t is
+ * set to 0x8100 (802.1Q tag protocol identifier).
+ */
+typedef struct __attribute__((packed)) {
+    network_uint16_t tci;               /**< 802.1q Tag Control Information */
+    network_uint16_t type;         /**< ether type when type==0x8100 */
+} ethernet_vlantag_hdr_t;
 
 #ifdef __cplusplus
 }

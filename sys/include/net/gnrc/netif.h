@@ -89,6 +89,11 @@ typedef struct {
      * @note    Only available if @ref GNRC_NETIF_L2ADDR_MAXLEN > 0
      */
     uint8_t l2addr_len;
+
+    /**
+     * @brief   Extra ID for the L2 header (VLAN ID, PAN ID)
+     */
+    uint16_t l2id;
 #endif
 #if defined(MODULE_GNRC_SIXLOWPAN) || DOXYGEN
     gnrc_netif_6lo_t sixlo;                 /**< 6Lo component */

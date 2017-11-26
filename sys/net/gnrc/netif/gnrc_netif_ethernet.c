@@ -23,7 +23,7 @@
 #include "net/ipv6/hdr.h"
 #endif
 
-#define ENABLE_DEBUG (0)
+#define ENABLE_DEBUG (1)
 #include "debug.h"
 
 static int _send(gnrc_netif_t *netif, gnrc_pktsnip_t *pkt);
@@ -88,11 +88,18 @@ static int _send(gnrc_netif_t *netif, gnrc_pktsnip_t *pkt)
         return -EBADMSG;
     }
 
+    uint16_t type = ETHERTYPE_UNKNOWN;
     if (payload) {
-        hdr.type = byteorder_htons(gnrc_nettype_to_ethertype(payload->type));
+        type = gnrc_nettype_to_ethertype(payload->type);
+    }
+
+    if (netif->l2id) {
+        hdr.type = byteorder_htons(ETHERTYPE_VLAN);
+        hdr.tci = byteorder_htons(netif->l2id);
+        hdr.next_type = byteorder_htons(type);
     }
     else {
-        hdr.type = byteorder_htons(ETHERTYPE_UNKNOWN);
+        hdr.type = byteorder_htons(type);
     }
 
     netif_hdr = pkt->data;
@@ -136,10 +143,11 @@ static int _send(gnrc_netif_t *netif, gnrc_pktsnip_t *pkt)
                                                  * variable */
     res = -ENOBUFS;
     if (payload != NULL) {
+        size_t hdr_size = (netif->l2id) ? sizeof(ethernet_hdr_t) : sizeof(ethernet_hdr_t) - 4;
         pkt = payload;      /* reassign for later release; vec_snip is prepended to pkt */
         struct iovec *vector = (struct iovec *)pkt->data;
         vector[0].iov_base = (char *)&hdr;
-        vector[0].iov_len = sizeof(ethernet_hdr_t);
+        vector[0].iov_len = hdr_size;
 #ifdef MODULE_NETSTATS_L2
         if ((netif_hdr->flags & GNRC_NETIF_HDR_FLAGS_BROADCAST) ||
             (netif_hdr->flags & GNRC_NETIF_HDR_FLAGS_MULTICAST)) {
@@ -206,9 +214,27 @@ static gnrc_pktsnip_t *_recv(gnrc_netif_t *netif)
             goto safe_out;
         }
 #endif
-
-        /* set payload type from ethertype */
         pkt->type = gnrc_nettype_from_ethertype(byteorder_ntohs(hdr->type));
+        uint16_t tci = byteorder_ntohs(hdr->tci);
+        if (netif->l2id) {
+            /* Expecting a VLAN tag */
+            if (pkt->type == GNRC_NETTYPE_VLAN && tci == netif->l2id) {
+                /* VLAN tag found */
+                DEBUG("gnrc_netif_ethernet: VLAN tag %d and matched\n", tci);
+                pkt->type = gnrc_nettype_from_ethertype(byteorder_ntohs(hdr->next_type));
+            } 
+            else  {
+                /* VLAN tag found, but incorrect */
+                DEBUG("gnrc_netif_ethernet: VLAN tag %d found but incorrect, expected: %d\n", tci, netif->l2id);
+                goto safe_out;
+            }
+        }
+        else {
+            if (pkt->type == ETHERTYPE_VLAN) {
+                DEBUG("gnrc_netif_ethernet: VLAN tag %d found while none configured\n", tci);
+                goto safe_out;
+            }
+        }
 
         /* create netif header */
         gnrc_pktsnip_t *netif_hdr;
@@ -231,9 +257,6 @@ static gnrc_pktsnip_t *_recv(gnrc_netif_t *netif)
               "of length %d\n",
               hdr->src[0], hdr->src[1], hdr->src[2], hdr->src[3], hdr->src[4],
               hdr->src[5], nread);
-#if defined(MODULE_OD) && ENABLE_DEBUG
-        od_hex_dump(hdr, nread, OD_WIDTH_DEFAULT);
-#endif
 
         gnrc_pktbuf_remove_snip(pkt, eth_hdr);
         LL_APPEND(pkt, netif_hdr);

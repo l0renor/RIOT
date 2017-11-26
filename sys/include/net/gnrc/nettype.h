@@ -52,6 +52,9 @@ typedef enum {
     GNRC_NETTYPE_NETIF = -1,
     GNRC_NETTYPE_UNDEF = 0,     /**< Protocol is undefined */
 
+#ifdef MODULE_NETDEV_ETH
+    GNRC_NETTYPE_VLAN,
+#endif
 #ifdef MODULE_GNRC_SIXLOWPAN
     GNRC_NETTYPE_SIXLOWPAN,     /**< Protocol is 6LoWPAN */
 #endif
@@ -132,6 +135,10 @@ typedef enum {
 static inline gnrc_nettype_t gnrc_nettype_from_ethertype(uint16_t type)
 {
     switch (type) {
+#ifdef MODULE_NETDEV_ETH
+        case ETHERTYPE_VLAN:
+            return GNRC_NETTYPE_VLAN;
+#endif
 #ifdef MODULE_GNRC_IPV6
         case ETHERTYPE_IPV6:
             return GNRC_NETTYPE_IPV6;
