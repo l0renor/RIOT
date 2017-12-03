@@ -170,11 +170,6 @@ static int _get(netdev_t *netdev, netopt_t opt, void *val, size_t max_len)
 
     cc2420_t *dev = (cc2420_t *)netdev;
 
-    int ext = netdev_ieee802154_get(&dev->netdev, opt, val, max_len);
-    if (ext > 0) {
-        return ext;
-    }
-
     switch (opt) {
 
         case NETOPT_ADDRESS:
@@ -243,9 +238,6 @@ static int _set(netdev_t *netdev, netopt_t opt, const void *val, size_t val_len)
     }
 
     cc2420_t *dev = (cc2420_t *)netdev;
-
-    int ext = netdev_ieee802154_set(&dev->netdev, opt, val, val_len);
-
     switch (opt) {
         case NETOPT_ADDRESS:
             assert(val_len == 2);
@@ -300,7 +292,7 @@ static int _set(netdev_t *netdev, netopt_t opt, const void *val, size_t val_len)
             return cc2420_set_option(dev, CC2420_OPT_TELL_TX_END, to_bool(val));
 
         default:
-            return ext;
+            return -ENOTSUP;
     }
 
     return 0;
