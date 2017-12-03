@@ -175,7 +175,7 @@ static int _get(netdev_t *netdev, netopt_t opt, void *val, size_t max_len)
         return -ENODEV;
     }
 
-    int res;
+    int res = -ENOTSUP;
     switch (opt) {
         case NETOPT_CHANNEL_PAGE:
             if (max_len < sizeof(uint16_t)) {
@@ -318,9 +318,7 @@ static int _get(netdev_t *netdev, netopt_t opt, void *val, size_t max_len)
             break;
 
         default:
-            /* try netdev settings */
-            res = netdev_ieee802154_get((netdev_ieee802154_t *)netdev, opt,
-                                         val, max_len);
+            break;
     }
     return res;
 }
@@ -513,11 +511,6 @@ static int _set(netdev_t *netdev, netopt_t opt, const void *val, size_t len)
 
         default:
             break;
-    }
-    /* try netdev building flags */
-    if (res == -ENOTSUP) {
-        res = netdev_ieee802154_set((netdev_ieee802154_t *)netdev, opt,
-                                     val, len);
     }
     return res;
 }
