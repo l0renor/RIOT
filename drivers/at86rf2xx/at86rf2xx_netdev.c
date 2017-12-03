@@ -330,12 +330,6 @@ static int _get(netdev_t *netdev, netopt_t opt, void *val, size_t max_len)
     }
 
     int res;
-
-    if (((res = netdev_ieee802154_get((netdev_ieee802154_t *)netdev, opt, val,
-                                       max_len)) >= 0) || (res != -ENOTSUP)) {
-        return res;
-    }
-
     uint8_t old_state = at86rf2xx_get_status(dev);
 
     /* temporarily wake up if sleeping */
@@ -570,10 +564,6 @@ static int _set(netdev_t *netdev, netopt_t opt, const void *val, size_t len)
     if ((old_state == AT86RF2XX_STATE_SLEEP)
         && (opt != NETOPT_STATE)) {
         at86rf2xx_set_state(dev, AT86RF2XX_STATE_SLEEP);
-    }
-
-    if (res == -ENOTSUP) {
-        res = netdev_ieee802154_set((netdev_ieee802154_t *)netdev, opt, val, len);
     }
 
     return res;
