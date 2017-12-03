@@ -366,7 +366,7 @@ int _get(netdev_t *netdev, netopt_t opt, void *value, size_t len)
             break;
     }
 
-    return netdev_ieee802154_get((netdev_ieee802154_t *)netdev, opt, value, len);
+    return -ENOTSUP;
 }
 
 static int _set(netdev_t *netdev, netopt_t opt, const void *value, size_t len)
@@ -547,12 +547,6 @@ static int _set(netdev_t *netdev, netopt_t opt, const void *value, size_t len)
         default:
             break;
     }
-
-    if (res == -ENOTSUP) {
-        res = netdev_ieee802154_set((netdev_ieee802154_t *)netdev, opt,
-                                     value, len);
-    }
-
     return res;
 }
 
