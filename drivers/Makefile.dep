@@ -343,6 +343,11 @@ ifneq (,$(filter xbee,$(USEMODULE)))
   USEMODULE += netif
 endif
 
+ifneq (,$(filter xpt2046,$(USEMODULE)))
+  FEATURES_REQUIRED += periph_gpio
+  FEATURES_REQUIRED += periph_spi
+endif
+
 ifneq (,$(filter lis3mdl,$(USEMODULE)))
   FEATURES_REQUIRED += periph_i2c
   USEMODULE += xtimer
