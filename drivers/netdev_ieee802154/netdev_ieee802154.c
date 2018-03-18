@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016 Freie Universität Berlin
+ *               2017 Koen Zandberg <koen@bergzand.net>
  *
  * This file is subject to the terms and conditions of the GNU Lesser
  * General Public License v2.1. See the file LICENSE in the top level
@@ -12,6 +13,7 @@
  *
  * @file
  * @author  Martine Lenders <mlenders@inf.fu-berlin.de>
+ * @author  Koen Zandberg <koen@bergzand.net>
  */
 
 #include <assert.h>
@@ -28,7 +30,27 @@
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
-static int _get_iid(netdev_ieee802154_t *dev, eui64_t *value, size_t max_len)
+static int _get(netdev_t *dev, netopt_t opt, void *value, size_t max_len);
+static int _set(netdev_t *dev, netopt_t opt, const void *value, size_t value_len);
+
+const netdev_driver_t ieee802154_layer = {
+    .send = netdev_send_pass,
+    .recv = netdev_recv_pass,
+    .init = netdev_init_pass,
+    .isr = netdev_isr_pass,
+    .get = _get,
+    .set = _set,
+};
+
+netdev_t *netdev_ieee802154_add(netdev_t *head,
+                                netdev_ieee802154_ct_t *dev_wpan) {
+    dev_wpan->netdev.driver = &ieee802154_layer;
+    head->event_callback = netdev_event_cb_pass;
+    dev_wpan->hwdev = (netdev_ieee802154_t*)head;
+    return netdev_add_layer(head, (netdev_t *)dev_wpan);
+}
+
+static int _get_iid(netdev_ieee802154_ct_t *dev, eui64_t *value, size_t max_len)
 {
     (void)max_len;
 
@@ -37,39 +59,41 @@ static int _get_iid(netdev_ieee802154_t *dev, eui64_t *value, size_t max_len)
 
     assert(max_len >= sizeof(eui64_t));
 
-    if (dev->flags & NETDEV_IEEE802154_SRC_MODE_LONG) {
+    if (dev->hwdev->flags & NETDEV_IEEE802154_SRC_MODE_LONG) {
         addr_len = IEEE802154_LONG_ADDRESS_LEN;
-        addr = dev->long_addr;
+        addr = dev->hwdev->long_addr;
     }
     else {
         addr_len = IEEE802154_SHORT_ADDRESS_LEN;
-        addr = dev->short_addr;
+        addr = dev->hwdev->short_addr;
     }
     ieee802154_get_iid(value, addr, addr_len);
 
     return sizeof(eui64_t);
 }
 
-int netdev_ieee802154_get(netdev_ieee802154_t *dev, netopt_t opt, void *value,
-                           size_t max_len)
+static int _get(netdev_t *dev, netopt_t opt,
+                void *value, size_t max_len)
 {
+    netdev_ieee802154_ct_t *dev_wpan = (netdev_ieee802154_ct_t*)dev;
+    netdev_ieee802154_t *hwdev = dev_wpan->hwdev;
     int res = -ENOTSUP;
 
     switch (opt) {
         case NETOPT_ADDRESS:
-            assert(max_len >= sizeof(dev->short_addr));
-            memcpy(value, dev->short_addr, sizeof(dev->short_addr));
-            res = sizeof(dev->short_addr);
+            assert(max_len >= sizeof(hwdev->short_addr));
+            memcpy(value, hwdev->short_addr, sizeof(hwdev->short_addr));
+            res = sizeof(hwdev->short_addr);
             break;
         case NETOPT_ADDRESS_LONG:
-            assert(max_len >= sizeof(dev->long_addr));
-            memcpy(value, dev->long_addr, sizeof(dev->long_addr));
-            res = sizeof(dev->long_addr);
+            assert(max_len >= sizeof(hwdev->long_addr));
+            memcpy(value, hwdev->long_addr, sizeof(hwdev->long_addr));
+            res = sizeof(hwdev->long_addr);
             break;
         case NETOPT_ADDR_LEN:
         case NETOPT_SRC_LEN:
             assert(max_len == sizeof(uint16_t));
-            if (dev->flags & NETDEV_IEEE802154_SRC_MODE_LONG) {
+            if (hwdev->flags & NETDEV_IEEE802154_SRC_MODE_LONG) {
                 *((uint16_t *)value) = IEEE802154_LONG_ADDRESS_LEN;
             }
             else {
@@ -78,18 +102,18 @@ int netdev_ieee802154_get(netdev_ieee802154_t *dev, netopt_t opt, void *value,
             res = sizeof(uint16_t);
             break;
         case NETOPT_NID:
-            assert(max_len == sizeof(dev->pan));
-            *((uint16_t *)value) = dev->pan;
-            res = sizeof(dev->pan);
+            assert(max_len == sizeof(hwdev->pan));
+            *((uint16_t *)value) = hwdev->pan;
+            res = sizeof(hwdev->pan);
             break;
         case NETOPT_CHANNEL:
             assert(max_len == sizeof(uint16_t));
-            *((uint16_t *)value) = (uint16_t)dev->chan;
-            res = sizeof(dev->chan);
+            *((uint16_t *)value) = (uint16_t)hwdev->chan;
+            res = sizeof(hwdev->chan);
             break;
         case NETOPT_ACK_REQ:
             assert(max_len == sizeof(netopt_enable_t));
-            if (dev->flags & NETDEV_IEEE802154_ACK_REQ) {
+            if (hwdev->flags & NETDEV_IEEE802154_ACK_REQ) {
                 *((netopt_enable_t *)value) = NETOPT_ENABLE;
             }
             else {
@@ -99,7 +123,7 @@ int netdev_ieee802154_get(netdev_ieee802154_t *dev, netopt_t opt, void *value,
             break;
         case NETOPT_RAWMODE:
             assert(max_len == sizeof(netopt_enable_t));
-            if (dev->flags & NETDEV_IEEE802154_RAW) {
+            if (hwdev->flags & NETDEV_IEEE802154_RAW) {
                 *((netopt_enable_t *)value) = NETOPT_ENABLE;
             }
             else {
@@ -110,7 +134,7 @@ int netdev_ieee802154_get(netdev_ieee802154_t *dev, netopt_t opt, void *value,
 #ifdef MODULE_GNRC
         case NETOPT_PROTO:
             assert(max_len == sizeof(gnrc_nettype_t));
-            *((gnrc_nettype_t *)value) = dev->proto;
+            *((gnrc_nettype_t *)value) = hwdev->proto;
             res = sizeof(gnrc_nettype_t);
             break;
 #endif
@@ -120,31 +144,36 @@ int netdev_ieee802154_get(netdev_ieee802154_t *dev, netopt_t opt, void *value,
             res = sizeof(uint16_t);
             break;
         case NETOPT_IPV6_IID:
-            res = _get_iid(dev, value, max_len);
+            res = _get_iid(dev_wpan, value, max_len);
             break;
 #ifdef MODULE_NETSTATS_L2
         case NETOPT_STATS:
             assert(max_len == sizeof(uintptr_t));
-            *((netstats_t **)value) = &dev->netdev.stats;
+            *((netstats_t **)value) = &hwdev->netdev.stats;
             res = sizeof(uintptr_t);
             break;
 #endif
 #ifdef MODULE_L2FILTER
         case NETOPT_L2FILTER:
             assert(max_len >= sizeof(l2filter_t **));
-            *((l2filter_t **)value) = dev->netdev.filter;
+            *((l2filter_t **)value) = hwdev->netdev.filter;
             res = sizeof(l2filter_t **);
             break;
 #endif
         default:
             break;
     }
+    if (res == -ENOTSUP) {
+        res = dev_wpan->netdev.lower->driver->get(dev_wpan->netdev.lower, opt, value, max_len);
+    }
     return res;
 }
 
-int netdev_ieee802154_set(netdev_ieee802154_t *dev, netopt_t opt, const void *value,
-                           size_t len)
+int _set(netdev_t *dev, netopt_t opt, const void *value,
+         size_t len)
 {
+    netdev_ieee802154_ct_t *dev_wpan = (netdev_ieee802154_ct_t*)dev;
+    netdev_ieee802154_t *hwdev = dev_wpan->hwdev;
     int res = -ENOTSUP;
 
     switch (opt) {
@@ -156,21 +185,21 @@ int netdev_ieee802154_set(netdev_ieee802154_t *dev, netopt_t opt, const void *va
              * 2.4 GHz band radios have different legal values. Here we only
              * check that it fits in an 8-bit variabl*/
             assert(chan <= UINT8_MAX);
-            dev->chan = chan;
+            hwdev->chan = chan;
             res = sizeof(uint16_t);
             break;
         }
         case NETOPT_ADDRESS:
-            assert(len <= sizeof(dev->short_addr));
-            memset(dev->short_addr, 0, sizeof(dev->short_addr));
-            memcpy(dev->short_addr, value, len);
-            res = sizeof(dev->short_addr);
+            assert(len <= sizeof(hwdev->short_addr));
+            memset(hwdev->short_addr, 0, sizeof(hwdev->short_addr));
+            memcpy(hwdev->short_addr, value, len);
+            res = sizeof(hwdev->short_addr);
             break;
         case NETOPT_ADDRESS_LONG:
-            assert(len <= sizeof(dev->long_addr));
-            memset(dev->long_addr, 0, sizeof(dev->long_addr));
-            memcpy(dev->long_addr, value, len);
-            res = sizeof(dev->long_addr);
+            assert(len <= sizeof(hwdev->long_addr));
+            memset(hwdev->long_addr, 0, sizeof(hwdev->long_addr));
+            memcpy(hwdev->long_addr, value, len);
+            res = sizeof(hwdev->long_addr);
             break;
         case NETOPT_ADDR_LEN:
         case NETOPT_SRC_LEN:
@@ -178,10 +207,10 @@ int netdev_ieee802154_set(netdev_ieee802154_t *dev, netopt_t opt, const void *va
             res = sizeof(uint16_t);
             switch ((*(uint16_t *)value)) {
                 case IEEE802154_SHORT_ADDRESS_LEN:
-                    dev->flags &= ~NETDEV_IEEE802154_SRC_MODE_LONG;
+                    hwdev->flags &= ~NETDEV_IEEE802154_SRC_MODE_LONG;
                     break;
                 case IEEE802154_LONG_ADDRESS_LEN:
-                    dev->flags |= NETDEV_IEEE802154_SRC_MODE_LONG;
+                    hwdev->flags |= NETDEV_IEEE802154_SRC_MODE_LONG;
                     break;
                 default:
                     res = -EAFNOSUPPORT;
@@ -189,45 +218,48 @@ int netdev_ieee802154_set(netdev_ieee802154_t *dev, netopt_t opt, const void *va
             }
             break;
         case NETOPT_NID:
-            assert(len == sizeof(dev->pan));
-            dev->pan = *((uint16_t *)value);
-            res = sizeof(dev->pan);
+            assert(len == sizeof(hwdev->pan));
+            hwdev->pan = *((uint16_t *)value);
+            res = sizeof(hwdev->pan);
             break;
         case NETOPT_ACK_REQ:
             if ((*(bool *)value)) {
-                dev->flags |= NETDEV_IEEE802154_ACK_REQ;
+                hwdev->flags |= NETDEV_IEEE802154_ACK_REQ;
             }
             else {
-                dev->flags &= ~NETDEV_IEEE802154_ACK_REQ;
+                hwdev->flags &= ~NETDEV_IEEE802154_ACK_REQ;
             }
             res = sizeof(uint16_t);
             break;
         case NETOPT_RAWMODE:
             if ((*(bool *)value)) {
-                dev->flags |= NETDEV_IEEE802154_RAW;
+                hwdev->flags |= NETDEV_IEEE802154_RAW;
             }
             else {
-                dev->flags &= ~NETDEV_IEEE802154_RAW;
+                hwdev->flags &= ~NETDEV_IEEE802154_RAW;
             }
             res = sizeof(uint16_t);
             break;
 #ifdef MODULE_GNRC
         case NETOPT_PROTO:
             assert(len == sizeof(gnrc_nettype_t));
-            dev->proto = *((gnrc_nettype_t *)value);
+            hwdev->proto = *((gnrc_nettype_t *)value);
             res = sizeof(gnrc_nettype_t);
             break;
 #endif
 #ifdef MODULE_L2FILTER
         case NETOPT_L2FILTER:
-            res = l2filter_add(dev->netdev.filter, value, len);
+            res = l2filter_add(hwdev->netdev.filter, value, len);
             break;
         case NETOPT_L2FILTER_RM:
-            res = l2filter_rm(dev->netdev.filter, value, len);
+            res = l2filter_rm(hwdev->netdev.filter, value, len);
             break;
 #endif
         default:
             break;
+    }
+    if (res == -ENOTSUP) {
+        res = dev_wpan->netdev.lower->driver->set(dev_wpan->netdev.lower, opt, value, len);
     }
     return res;
 }

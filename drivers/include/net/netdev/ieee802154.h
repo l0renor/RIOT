@@ -121,49 +121,23 @@ typedef struct {
 typedef struct netdev_radio_rx_info netdev_ieee802154_rx_info_t;
 
 /**
- * @brief   Fallback function for netdev IEEE 802.15.4 devices' _get function
- *
- * Supposed to be used by netdev drivers as default case.
- *
- * @param[in]   dev     network device descriptor
- * @param[in]   opt     option type
- * @param[out]  value   pointer to store the option's value in
- * @param[in]   max_len maximal amount of byte that fit into @p value
- *
- * @return              number of bytes written to @p value
- * @return              <0 on error
+ * @brief   Control layer descriptor for IEEE802.15.4 layer
  */
-int netdev_ieee802154_get(netdev_ieee802154_t *dev, netopt_t opt, void *value,
-                          size_t max_len);
+typedef struct {
+    netdev_t netdev;            /**< netdev layer parent struct */
+    netdev_ieee802154_t *hwdev; /**< Pointer to the hardware driver struct */
+} netdev_ieee802154_ct_t;
 
 /**
- * @brief   Fallback function for netdev IEEE 802.15.4 devices' _set function
+ * @brief   Add a ieee802.15.4 netdev layer to the top of the netdev stack
  *
- * Sets netdev_ieee802154_t::pan, netdev_ieee802154_t::short_addr, and
- * netdev_ieee802154_t::long_addr in device struct.
- * Additionally @ref NETDEV_IEEE802154_SRC_MODE_LONG,
- * @ref NETDEV_IEEE802154_RAW and, @ref NETDEV_IEEE802154_ACK_REQ in
- * netdev_ieee802154_t::flags can be set or unset.
+ * @param[in] head    Top netdev device of the stack.
+ * @param[in] layer   New ieee802.15.4 layer to push to the top of the stack.
  *
- * The setting of netdev_ieee802154_t::chan is omitted since the legality of
- * its value can be very device specific and can't be checked in this function.
- * Please set it in the netdev_driver_t::set function of your driver.
- *
- * Be aware that this only manipulates the netdev_ieee802154_t struct.
- * Configuration to the device needs to be done in the netdev_driver_t::set
- * function of the device driver (which should call this function as a fallback
- * afterwards).
- *
- * @param[in] dev       network device descriptor
- * @param[in] opt       option type
- * @param[in] value     value to set
- * @param[in] value_len the length of @p value
- *
- * @return              number of bytes used from @p value
- * @return              <0 on error
+ * @return  The new top of the netdev stack.
  */
-int netdev_ieee802154_set(netdev_ieee802154_t *dev, netopt_t opt, const void *value,
-                          size_t value_len);
+netdev_t *netdev_ieee802154_add(netdev_t *head,
+                                netdev_ieee802154_ct_t *layer);
 
 #ifdef __cplusplus
 }

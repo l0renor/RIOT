@@ -49,6 +49,7 @@ ifneq (,$(filter gnrc_netdev_default,$(USEMODULE)))
 endif
 
 ifneq (,$(filter netdev_ieee802154,$(USEMODULE)))
+  USEMODULE += netdev_layer
   USEMODULE += ieee802154
 endif
 
