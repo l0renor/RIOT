@@ -15,6 +15,7 @@
 
 #include "net/gnrc.h"
 #include "net/gnrc/netif/ieee802154.h"
+#include "net/gnrc/netif/internal.h"
 #include "net/netdev/ieee802154.h"
 
 #ifdef MODULE_GNRC_IPV6
@@ -29,6 +30,7 @@
 #endif
 
 #ifdef MODULE_NETDEV_IEEE802154
+static void *_bootstrap(void *args);
 static int _send(gnrc_netif_t *netif, gnrc_pktsnip_t *pkt);
 static gnrc_pktsnip_t *_recv(gnrc_netif_t *netif);
 
@@ -44,7 +46,28 @@ gnrc_netif_t *gnrc_netif_ieee802154_create(char *stack, int stacksize,
                                            netdev_t *dev)
 {
     return gnrc_netif_create(stack, stacksize, priority, name, dev,
+                             _bootstrap,
                              &ieee802154_ops);
+}
+
+static void *_bootstrap(void *args)
+{
+    gnrc_netif_t *netif = args;
+    netdev_ieee802154_ct_t ieee802154_layer;
+    netdev_t *netdev_top;
+
+    gnrc_netif_acquire(netif);
+    netif->hwdev = netif->dev;
+
+    /* Add netdev 802154 layer to the stack */
+    netdev_top = netif->dev;
+    netdev_top = netdev_ieee802154_add(netdev_top,
+                                       &ieee802154_layer);
+
+    netdev_top->context = netif;
+    netif->dev = netdev_top;
+    gnrc_netif_release(netif);
+    return gnrc_netif_thread(args);
 }
 
 static gnrc_pktsnip_t *_make_netif_hdr(uint8_t *mhr)
@@ -78,7 +101,7 @@ static gnrc_pktsnip_t *_recv(gnrc_netif_t *netif)
 {
     netdev_t *dev = netif->dev;
     netdev_ieee802154_rx_info_t rx_info;
-    netdev_ieee802154_t *state = (netdev_ieee802154_t *)netif->dev;
+    netdev_ieee802154_t *state = (netdev_ieee802154_t *)netif->hwdev;
     gnrc_pktsnip_t *pkt = NULL;
     int bytes_expected = dev->driver->recv(dev, NULL, 0, NULL);
 
@@ -166,7 +189,7 @@ static gnrc_pktsnip_t *_recv(gnrc_netif_t *netif)
 static int _send(gnrc_netif_t *netif, gnrc_pktsnip_t *pkt)
 {
     netdev_t *dev = netif->dev;
-    netdev_ieee802154_t *state = (netdev_ieee802154_t *)netif->dev;
+    netdev_ieee802154_t *state = (netdev_ieee802154_t *)netif->hwdev;
     gnrc_netif_hdr_t *netif_hdr;
     const uint8_t *src, *dst = NULL;
     int res = 0;
