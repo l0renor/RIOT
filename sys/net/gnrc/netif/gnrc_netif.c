@@ -39,11 +39,11 @@
 static gnrc_netif_t _netifs[GNRC_NETIF_NUMOF];
 
 static void _update_l2addr_from_dev(gnrc_netif_t *netif);
-static void *_gnrc_netif_thread(void *args);
 static void _event_cb(netdev_t *dev, netdev_event_t event);
 
 gnrc_netif_t *gnrc_netif_create(char *stack, int stacksize, char priority,
                                 const char *name, netdev_t *netdev,
+                                gnrc_netif_bootstrap_t bootstrap,
                                 const gnrc_netif_ops_t *ops)
 {
     gnrc_netif_t *netif = NULL;
@@ -63,7 +63,7 @@ gnrc_netif_t *gnrc_netif_create(char *stack, int stacksize, char priority,
     assert(netif->dev == NULL);
     netif->dev = netdev;
     res = thread_create(stack, stacksize, priority, THREAD_CREATE_STACKTEST,
-                        _gnrc_netif_thread, (void *)netif, name);
+                        bootstrap, (void *)netif, name);
     (void)res;
     assert(res > 0);
     return netif;
@@ -1216,11 +1216,10 @@ static void _init_from_device(gnrc_netif_t *netif)
     _update_l2addr_from_dev(netif);
 }
 
-static void *_gnrc_netif_thread(void *args)
+void *gnrc_netif_thread(void *args)
 {
     gnrc_netapi_opt_t *opt;
     gnrc_netif_t *netif;
-    netdev_t *dev;
     int res;
     msg_t reply = { .type = GNRC_NETAPI_MSG_TYPE_ACK };
     msg_t msg, msg_queue[_NETIF_NETAPI_MSG_QUEUE_SIZE];
@@ -1228,20 +1227,18 @@ static void *_gnrc_netif_thread(void *args)
     DEBUG("gnrc_netif: starting thread %i\n", sched_active_pid);
     netif = args;
     gnrc_netif_acquire(netif);
-    dev = netif->dev;
     netif->pid = sched_active_pid;
     /* setup the link-layer's message queue */
     msg_init_queue(msg_queue, _NETIF_NETAPI_MSG_QUEUE_SIZE);
-    /* register the event callback with the device driver */
-    dev->event_callback = _event_cb;
-    dev->context = netif;
     /* initialize low-level driver */
-    dev->driver->init(dev);
+    netif->dev->event_callback = _event_cb;
+    netif->dev->driver->init(netif->dev);
     _init_from_device(netif);
     netif->cur_hl = GNRC_NETIF_DEFAULT_HL;
 #ifdef MODULE_GNRC_IPV6_NIB
     gnrc_ipv6_nib_init_iface(netif);
 #endif
+
     if (netif->ops->init) {
         netif->ops->init(netif);
     }
@@ -1255,7 +1252,7 @@ static void *_gnrc_netif_thread(void *args)
         switch (msg.type) {
             case NETDEV_MSG_TYPE_EVENT:
                 DEBUG("gnrc_netif: GNRC_NETDEV_MSG_TYPE_EVENT received\n");
-                dev->driver->isr(dev);
+                netif->dev->driver->isr(netif->dev);
                 break;
             case GNRC_NETAPI_MSG_TYPE_SND:
                 DEBUG("gnrc_netif: GNRC_NETDEV_MSG_TYPE_SND received\n");
