@@ -1,0 +1,4 @@
+﻿USEMODULE += random
+USEPKG += libcose
+USEMODULE += libcose_crypt_tweetnacl
+CFLAGS += '-DTHREAD_STACKSIZE_MAIN=(THREAD_STACKSIZE_DEFAULT + 8192)'

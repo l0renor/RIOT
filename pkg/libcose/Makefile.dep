@@ -1,0 +1,8 @@
+USEMODULE += memarray
+USEPKG += cn-cbor
+
+USEMODULE += libcose_crypt
+
+ifneq (,$(filter libcose_crypt_tweetnacl,$(USEMODULE)))
+  USEPKG += tweetnacl
+endif

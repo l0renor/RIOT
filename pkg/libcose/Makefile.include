@@ -1,0 +1,9 @@
+INCLUDES += -I$(PKGDIRBASE)/libcose/include
+CFLAGS += -DUSE_CBOR_CONTEXT
+
+ifneq (,$(filter libcose_crypt_tweetnacl,$(USEMODULE)))
+  CFLAGS += -DCRYPTO_TWEETNACL
+endif
+
+# Declare pseudomodules here to be selfcontained
+PSEUDOMODULES += libcose_crypt_%
