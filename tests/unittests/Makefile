@@ -211,7 +211,7 @@ ifneq (, $(filter $(AVR_BOARDS), $(BOARD)))
   LARGE_STACK_TESTS += tests-qDSA
 endif
 
-LARGE_STACK_TESTS += tests-tweetnacl
+LARGE_STACK_TESTS += tests-tweetnacl tests-libsodium
 ifneq (,$(filter $(LARGE_STACK_TESTS), $(UNIT_TESTS)))
   CFLAGS += -DTHREAD_STACKSIZE_MAIN=\(4*THREAD_STACKSIZE_DEFAULT+THREAD_EXTRA_STACKSIZE_PRINTF\)
 endif
