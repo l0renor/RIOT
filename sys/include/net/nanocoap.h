@@ -276,11 +276,6 @@ typedef struct {
 } coap_resource_t;
 
 /**
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
->>>>>>> nanocoap: Add server side block2 support
  * @brief   Block1 helper struct
  */
 typedef struct {
@@ -292,8 +287,6 @@ typedef struct {
 } coap_block1_t;
 
 /**
-<<<<<<< HEAD
-=======
  * @brief Blockwise transfer helper struct
  */
 typedef struct {
@@ -558,11 +551,74 @@ unsigned coap_get_content_type(coap_pkt_t *pkt);
  */
 int coap_get_uri(coap_pkt_t *pkt, uint8_t *target);
 
+/**
+ * @brief Initialize a block2 response
+ *
+ * This function initializes a block2 response and adds the block2 option to
+ * the packet
+ *
+ * Caller must ensure that this function is called after all required
+ * preceding options are added
+ *
+ * @param[in]   buf         buffer to write to
+ * @param[in]   lastonum    last option number (must be <27)
+ * @param[in]   pkt         packet to work on
+ * @param[out]  blk         Preallocated blockhelper struct to fill
+ *
+ * @returns     amount of bytes written to @p buf
+ */
 size_t coap_block2_init(uint8_t* buf, uint16_t lastonum, coap_pkt_t *pkt, coap_blockhelper_t *blk);
+
+/**
+ * @brief   Build reply to CoAP block2 request
+ *
+ * This function can be used to create a reply to a CoAP block2 request
+ * packet. In addition to @ref coap_build_reply, this function checks the
+ * block2 option and returns an error message to the client if necessary.
+ *
+ * @param[in]   pkt         packet to reply to
+ * @param[in]   code        reply code (e.g., COAP_CODE_204)
+ * @param[out]  rbuf        buffer to write reply to
+ * @param[in]   rlen        size of @p rbuf
+ * @param[in]   payload_len length of payload
+ * @param[in]   blk         blockhelper to use
+ *
+ * @returns     size of reply packet on success
+ * @returns     <0 on error
+ */
 ssize_t coap_block2_build_reply(coap_pkt_t *pkt, unsigned code,
                         uint8_t *rbuf, unsigned rlen, unsigned payload_len,
                         coap_blockhelper_t *blk);
+
+/**
+ * @brief Add a single character to a block2 reply.
+ *
+ * This function is used to add single characters to a CoAP block2 reply. It
+ * checks whether the character should be added to the buffer and ignores it
+ * when the character is outside the current block2 request.
+ *
+ * @param[in]   blk         blockhelper to use
+ * @param[in]   bufpos      pointer to the current payload buffer position
+ * @param[in]   c           character to write
+ *
+ * @returns     Number of bytes writen to @p bufpos
+ */
 size_t coap_blockwise_put_char(coap_blockhelper_t *blk, uint8_t *bufpos, char c);
+
+/**
+ * @brief Add a byte array to a block2 reply.
+ *
+ * This function is used to add an array of bytes to a CoAP block2 reply. it
+ * checks which parts of the string should be added to the reply and ignores
+ * parts that are outside the current block2 request.
+ *
+ * @param[in]   blk         blockhelper to use
+ * @param[in]   bufpos      pointer to the current payload buffer position
+ * @param[in]   c           byte array to copy
+ * @param[in]   len         length of the byte array
+ *
+ * @returns     Number of bytes writen to @p bufpos
+ */
 size_t coap_blockwise_put_bytes(coap_blockhelper_t *blk, uint8_t *bufpos,
                                 const uint8_t *c, size_t len);
 /**
