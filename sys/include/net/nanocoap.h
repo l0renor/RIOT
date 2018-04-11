@@ -49,6 +49,7 @@ extern "C" {
  */
 #define NANOCOAP_NOPTS_MAX      (16)
 #define NANOCOAP_URI_MAX        (64)
+#define NANOCOAP_BLOCK_SZX_MAX  (6)
 /** @} */
 
 #ifdef MODULE_GCOAP
@@ -275,6 +276,11 @@ typedef struct {
 } coap_resource_t;
 
 /**
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+>>>>>>> nanocoap: Add server side block2 support
  * @brief   Block1 helper struct
  */
 typedef struct {
@@ -286,6 +292,20 @@ typedef struct {
 } coap_block1_t;
 
 /**
+<<<<<<< HEAD
+=======
+ * @brief Blockwise transfer helper struct
+ */
+typedef struct {
+    size_t start;                   /**< Start offset of the current block  */
+    size_t end;                     /**< End offset of the current block    */
+    size_t cur;                     /**< Offset of the  generated content   */
+    uint8_t *opt;                   /**< Pointer to the placed option       */
+} coap_blockhelper_t;
+
+/**
+>>>>>>> 01c4c5265... nanocoap: Add server side block2 support
+>>>>>>> nanocoap: Add server side block2 support
  * @brief   Global CoAP resource list
  */
 extern const coap_resource_t coap_resources[];
@@ -499,6 +519,20 @@ size_t coap_put_option_block1(uint8_t *buf, uint16_t lastonum, unsigned blknum, 
 size_t coap_put_block1_ok(uint8_t *pkt_pos, coap_block1_t *block1, uint16_t lastonum);
 
 /**
+ * @brief   Insert block2 option into buffer
+ *
+ * @param[out]  buf         buffer to write to
+ * @param[in]   lastonum    number of previous option (for delta calculation),
+ *                          must be < 27
+ * @param[in]   blknum      block number
+ * @param[in]   szx         SXZ value
+ * @param[in]   more        more flag (1 or 0)
+ *
+ * @returns     amount of bytes written to @p buf
+ */
+size_t coap_put_option_block2(uint8_t *buf, uint16_t lastonum, unsigned blknum, unsigned szx, int more);
+
+/**
  * @brief   Get content type from packet
  *
  * @param[in]   pkt     packet to work on
@@ -524,6 +558,13 @@ unsigned coap_get_content_type(coap_pkt_t *pkt);
  */
 int coap_get_uri(coap_pkt_t *pkt, uint8_t *target);
 
+size_t coap_block2_init(uint8_t* buf, uint16_t lastonum, coap_pkt_t *pkt, coap_blockhelper_t *blk);
+ssize_t coap_block2_build_reply(coap_pkt_t *pkt, unsigned code,
+                        uint8_t *rbuf, unsigned rlen, unsigned payload_len,
+                        coap_blockhelper_t *blk);
+size_t coap_blockwise_put_char(coap_blockhelper_t *blk, uint8_t *bufpos, char c);
+size_t coap_blockwise_put_bytes(coap_blockhelper_t *blk, uint8_t *bufpos,
+                                const uint8_t *c, size_t len);
 /**
  * @brief    Helper to decode SZX value to size in bytes
  *
