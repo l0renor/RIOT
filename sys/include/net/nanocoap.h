@@ -297,8 +297,6 @@ typedef struct {
 } coap_blockhelper_t;
 
 /**
->>>>>>> 01c4c5265... nanocoap: Add server side block2 support
->>>>>>> nanocoap: Add server side block2 support
  * @brief   Global CoAP resource list
  */
 extern const coap_resource_t coap_resources[];
