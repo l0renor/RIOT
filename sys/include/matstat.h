@@ -47,7 +47,6 @@ typedef struct {
     int64_t sum;        /**< Sum of values added */
     uint64_t sum_sq;    /**< Sum of squared differences */
     uint32_t count;     /**< Number of values added */
-    int32_t mean;       /**< Mean value */
     int32_t min;        /**< Minimum value seen */
     int32_t max;        /**< Maximum value seen */
 } matstat_state_t;
@@ -59,7 +58,6 @@ typedef struct {
         .sum = 0, \
         .sum_sq = 0, \
         .count = 0, \
-        .mean = 0, \
         .min = INT32_MAX, \
         .max = INT32_MIN, \
     }
@@ -88,7 +86,7 @@ void matstat_add(matstat_state_t *state, int32_t value);
  */
 static inline int32_t matstat_mean(const matstat_state_t *state)
 {
-    return state->mean;
+    return (state->count) ? state->sum / state->count : 0;
 }
 
 /**

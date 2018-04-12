@@ -25,18 +25,16 @@ void matstat_add(matstat_state_t *state, int32_t value)
     if (value < state->min) {
         state->min = value;
     }
-    state->sum += value;
     /* Using Welford's algorithm for variance */
-    ++state->count;
-    if (state->count == 1) {
+    if (!state->count) {
         state->sum_sq = 0;
-        state->mean = value;
     }
     else {
-        int32_t new_mean = state->sum / state->count;
-        state->sum_sq += (value - state->mean) * (value - new_mean);
-        state->mean = new_mean;
+        int32_t new_mean = (state->sum + value) / (state->count + 1);
+        state->sum_sq += (value - matstat_mean(state)) * (value - new_mean);
     }
+    state->count++;
+    state->sum += value;
 }
 
 uint64_t matstat_variance(const matstat_state_t *state)
@@ -67,12 +65,11 @@ void matstat_merge(matstat_state_t *dest, const matstat_state_t *src)
      * source: https://stats.stackexchange.com/a/43183
      * (using sum_sq = sigma2 * n)
      */
-    dest->sum_sq = (dest->sum_sq + dest->sum * dest->mean + src->sum_sq + src->sum * src->mean);
+    dest->sum_sq = (dest->sum_sq + dest->sum * matstat_mean(dest) +
+            src->sum_sq + src->sum * matstat_mean(src));
     dest->count += src->count;
     dest->sum += src->sum;
-    int32_t new_mean = dest->sum / dest->count;
-    dest->sum_sq = dest->sum_sq - new_mean * dest->sum;
-    dest->mean = new_mean;
+    dest->sum_sq = dest->sum_sq - matstat_mean(dest) * dest->sum;
     if (src->max > dest->max) {
         dest->max = src->max;
     }

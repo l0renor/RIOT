@@ -191,7 +191,7 @@ static void test_matstat_merge_variance(void)
      * operations involved in the variance computation. */
     TEST_ASSERT(var_diff <  1000);
     TEST_ASSERT(var_diff > -1000);
-    TEST_ASSERT_EQUAL_INT(state_ref.mean, state1.mean);
+    TEST_ASSERT_EQUAL_INT(matstat_mean(&state_ref), matstat_mean(&state1));
 }
 
 static void test_matstat_accuracy(void)
