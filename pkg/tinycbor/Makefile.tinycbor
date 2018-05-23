@@ -1,0 +1,9 @@
+MODULE := tinycbor
+
+SRC += cborerrorstrings.c
+SRC += cborencoder.c
+SRC += cborencoder_close_container_checked.c
+SRC += cborparser.c
+SRC += cborvalidation.c
+
+include $(RIOTBASE)/Makefile.base
