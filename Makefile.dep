@@ -741,6 +741,7 @@ ifneq (,$(filter uuid,$(USEMODULE)))
   USEMODULE += random
 endif
 
+<<<<<<< HEAD
 ifneq (,$(RIOTBOOT_SLOT0_SIZE))
   FEATURES_PROVIDED += riotboot
 endif
@@ -760,6 +761,11 @@ ifneq (,$(filter firmware,$(USEMODULE)))
   USEPKG += tweetnacl
   FEATURES_REQUIRED += riotboot
   FEATURES_REQUIRED += periph_flashpage
+endif
+
+ifneq (,$(filter suit,$(USEMODULE)))
+  USEPKG += tinycbor
+  USEMODULE += uuid
 endif
 
 # always select gpio (until explicit dependencies are sorted out)
