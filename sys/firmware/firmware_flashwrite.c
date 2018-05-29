@@ -39,7 +39,7 @@ int firmware_flashwrite_init(firmware_flashwrite_t *state, int target_slot,
 
     state->offset = offset;
     state->target_slot = target_slot;
-    state->flashpage = flashpage_page(firmware_get_metadata(target_slot));
+    state->flashpage = flashpage_page(firmware_get_metadata(target_slot) );
 
     return 0;
 }
