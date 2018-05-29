@@ -741,13 +741,8 @@ ifneq (,$(filter uuid,$(USEMODULE)))
   USEMODULE += random
 endif
 
-<<<<<<< HEAD
 ifneq (,$(RIOTBOOT_SLOT0_SIZE))
   FEATURES_PROVIDED += riotboot
-endif
-
-ifneq (,$(filter ota_%,$(USEMODULE)))
-  USEMODULE += ota
 endif
 
 ifneq (,$(filter ota_coap,$(USEMODULE)))
@@ -755,12 +750,21 @@ ifneq (,$(filter ota_coap,$(USEMODULE)))
   USEMODULE += nanocoap
 endif
 
+ifneq (,$(filter ota_suit,$(USEMODULE)))
+  USEMODULE += nanocoap
+  USEMODULE += firmware_manifest
+endif
+
 ifneq (,$(filter firmware,$(USEMODULE)))
   USEMODULE += checksum
   USEMODULE += hashes
-  USEPKG += tweetnacl
   FEATURES_REQUIRED += riotboot
   FEATURES_REQUIRED += periph_flashpage
+endif
+
+ifneq (,$(filter firmware_manifest,$(USEMODULE)))
+  USEMODULE += firmware
+  USEMODULE += sock_util
 endif
 
 ifneq (,$(filter suit,$(USEMODULE)))
