@@ -49,6 +49,7 @@ extern "C" {
  */
 #define NANOCOAP_NOPTS_MAX      (16)
 #define NANOCOAP_URI_MAX        (64)
+#define NANOCOAP_BLOCK_SZX_MAX  (6)
 /** @} */
 
 #ifdef MODULE_GCOAP
@@ -287,6 +288,16 @@ typedef struct {
 } coap_block1_t;
 
 /**
+ * @brief Blockwise transfer helper struct
+ */
+typedef struct {
+    size_t start;                   /**< Start offset of the current block  */
+    size_t end;                     /**< End offset of the current block    */
+    size_t cur;                     /**< Offset of the  generated content   */
+    uint8_t *opt;                   /**< Pointer to the placed option       */
+} coap_blockhelper_t;
+
+/**
  * @brief   Global CoAP resource list
  */
 extern const coap_resource_t coap_resources[];
@@ -467,6 +478,17 @@ int coap_get_blockopt(coap_pkt_t *pkt, uint16_t option, uint32_t *blknum, unsign
 int coap_get_block1(coap_pkt_t *pkt, coap_block1_t *block1);
 
 /**
+ * @brief    Block2 option getter
+ *
+ * @param[in]   pkt     pkt to work on
+ * @param[out]  block1  ptr to preallocated coap_block1_t structure
+ *
+ * @returns     0 if block2 option not present
+ * @returns     1 if structure has been filled
+ */
+int coap_get_block2(coap_pkt_t *pkt, coap_block1_t *block2);
+
+/**
  * @brief   Insert block1 option into buffer
  *
  * @param[out]  buf         buffer to write to
@@ -500,6 +522,20 @@ size_t coap_put_option_block1(uint8_t *buf, uint16_t lastonum, unsigned blknum, 
 size_t coap_put_block1_ok(uint8_t *pkt_pos, coap_block1_t *block1, uint16_t lastonum);
 
 /**
+ * @brief   Insert block2 option into buffer
+ *
+ * @param[out]  buf         buffer to write to
+ * @param[in]   lastonum    number of previous option (for delta calculation),
+ *                          must be < 27
+ * @param[in]   blknum      block number
+ * @param[in]   szx         SXZ value
+ * @param[in]   more        more flag (1 or 0)
+ *
+ * @returns     amount of bytes written to @p buf
+ */
+size_t coap_put_option_block2(uint8_t *buf, uint16_t lastonum, unsigned blknum, unsigned szx, int more);
+
+/**
  * @brief   Get content type from packet
  *
  * @param[in]   pkt     packet to work on
@@ -525,6 +561,76 @@ unsigned coap_get_content_type(coap_pkt_t *pkt);
  */
 int coap_get_uri(coap_pkt_t *pkt, uint8_t *target);
 
+/**
+ * @brief Initialize a block2 response
+ *
+ * This function initializes a block2 response and adds the block2 option to
+ * the packet
+ *
+ * Caller must ensure that this function is called after all required
+ * preceding options are added
+ *
+ * @param[in]   buf         buffer to write to
+ * @param[in]   lastonum    last option number (must be <27)
+ * @param[in]   pkt         packet to work on
+ * @param[out]  blk         Preallocated blockhelper struct to fill
+ *
+ * @returns     amount of bytes written to @p buf
+ */
+size_t coap_block2_init(uint8_t* buf, uint16_t lastonum, coap_pkt_t *pkt, coap_blockhelper_t *blk);
+
+/**
+ * @brief   Build reply to CoAP block2 request
+ *
+ * This function can be used to create a reply to a CoAP block2 request
+ * packet. In addition to @ref coap_build_reply, this function checks the
+ * block2 option and returns an error message to the client if necessary.
+ *
+ * @param[in]   pkt         packet to reply to
+ * @param[in]   code        reply code (e.g., COAP_CODE_204)
+ * @param[out]  rbuf        buffer to write reply to
+ * @param[in]   rlen        size of @p rbuf
+ * @param[in]   payload_len length of payload
+ * @param[in]   blk         blockhelper to use
+ *
+ * @returns     size of reply packet on success
+ * @returns     <0 on error
+ */
+ssize_t coap_block2_build_reply(coap_pkt_t *pkt, unsigned code,
+                        uint8_t *rbuf, unsigned rlen, unsigned payload_len,
+                        coap_blockhelper_t *blk);
+
+/**
+ * @brief Add a single character to a block2 reply.
+ *
+ * This function is used to add single characters to a CoAP block2 reply. It
+ * checks whether the character should be added to the buffer and ignores it
+ * when the character is outside the current block2 request.
+ *
+ * @param[in]   blk         blockhelper to use
+ * @param[in]   bufpos      pointer to the current payload buffer position
+ * @param[in]   c           character to write
+ *
+ * @returns     Number of bytes writen to @p bufpos
+ */
+size_t coap_blockwise_put_char(coap_blockhelper_t *blk, uint8_t *bufpos, char c);
+
+/**
+ * @brief Add a byte array to a block2 reply.
+ *
+ * This function is used to add an array of bytes to a CoAP block2 reply. it
+ * checks which parts of the string should be added to the reply and ignores
+ * parts that are outside the current block2 request.
+ *
+ * @param[in]   blk         blockhelper to use
+ * @param[in]   bufpos      pointer to the current payload buffer position
+ * @param[in]   c           byte array to copy
+ * @param[in]   len         length of the byte array
+ *
+ * @returns     Number of bytes writen to @p bufpos
+ */
+size_t coap_blockwise_put_bytes(coap_blockhelper_t *blk, uint8_t *bufpos,
+                                const uint8_t *c, size_t len);
 /**
  * @brief    Helper to decode SZX value to size in bytes
  *
