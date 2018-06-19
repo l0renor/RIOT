@@ -16,7 +16,6 @@
 #include "net/nanocoap_sock.h"
 #include "net/sock.h"
 #include "net/sock/util.h"
-#include "cn-cbor/cn-cbor.h"
 #include "fmt.h"
 #include "mutex.h"
 #include "msg.h"

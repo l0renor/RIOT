@@ -28,7 +28,6 @@ extern "C" {
 #include "mutex.h"
 #include "thread.h"
 #include "memarray.h"
-#include "cn-cbor/cn-cbor.h"
 #include "firmware/flashwrite.h"
 #include "net/sock.h"
 #include "net/sock/udp.h"

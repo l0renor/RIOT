@@ -5,8 +5,8 @@ CFLAGS += -DSLOT2_SIZE=$(RIOTBOOT_SLOT2_SIZE)
 
 SRC = firmware.c firmware_flashwrite.c
 
-ifneq (,$(filter firmware_riotboot,$(USEMODULE)))
-  SRC += firmware_riotboot.c
+ifneq (,$(filter firmware_simple,$(USEMODULE)))
+  SRC += firmware_simple.c
 endif
 
 ifneq (,$(filter firmware_manifest,$(USEMODULE)))
