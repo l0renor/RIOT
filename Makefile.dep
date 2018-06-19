@@ -747,12 +747,17 @@ endif
 
 ifneq (,$(filter ota_coap,$(USEMODULE)))
   USEMODULE += firmware
+  USEMODULE += firmware_simple
   USEMODULE += nanocoap
 endif
 
 ifneq (,$(filter ota_suit,$(USEMODULE)))
   USEMODULE += nanocoap
+  USEMODULE += fmt
   USEMODULE += firmware_manifest
+  USEMODULE += libcose_crypt_tweetnacl
+  USEMODULE += suit
+  USEPKG += libcose
 endif
 
 ifneq (,$(filter firmware,$(USEMODULE)))
