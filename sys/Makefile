@@ -133,6 +133,12 @@ endif
 ifneq (,$(filter rdcli_simple,$(USEMODULE)))
     DIRS += net/application_layer/rdcli_simple
 endif
+ifneq (,$(filter ota_suit,$(USEMODULE)))
+  DIRS += net/application_layer/ota_suit
+endif
+ifneq (,$(filter ota_coap,$(USEMODULE)))
+  DIRS += net/application_layer/ota_coap
+endif
 
 DIRS += $(dir $(wildcard $(addsuffix /Makefile, $(USEMODULE))))
 

@@ -10,6 +10,7 @@ PSEUDOMODULES += conn_can_isotp_multi
 PSEUDOMODULES += core_%
 PSEUDOMODULES += emb6_router
 PSEUDOMODULES += event_%
+PSEUDOMODULES += firmware_%
 PSEUDOMODULES += gnrc_ipv6_default
 PSEUDOMODULES += gnrc_ipv6_router
 PSEUDOMODULES += gnrc_ipv6_router_default

@@ -1,6 +1,6 @@
 PKG_NAME=tinycbor
 PKG_URL=https://github.com/intel/tinycbor
-PKG_VERSION=v0.5.1
+PKG_VERSION=9e226103da7977047633de532dff7ec0d6e7b1fa
 PKG_LICENSE=MIT
 
 .PHONY: all
