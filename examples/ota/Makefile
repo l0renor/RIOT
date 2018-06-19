@@ -1,5 +1,5 @@
 # name of your application
-APPLICATION = ota_example
+APPLICATION = ota
 
 # If no BOARD is found in the environment, use this default:
 BOARD ?= samr21-xpro
@@ -9,6 +9,9 @@ RIOTBASE ?= $(CURDIR)/../..
 
 # Signature verification needs quite a lot of stack
 CFLAGS += "-DTHREAD_STACKSIZE_MAIN=((6*THREAD_STACKSIZE_DEFAULT)+THREAD_EXTRA_STACKSIZE_PRINTF)"
+
+
+
 
 # include ota modules
 USEMODULE += ota_coap
@@ -28,8 +31,8 @@ USEMODULE += gnrc_sock_udp
 # Additional networking modules that can be dropped if not needed
 USEMODULE += gnrc_icmpv6_echo
 
-# include this for printing IP addresses
-USEMODULE += shell_commands
+USEPKG += tweetnacl
+
 
 include $(RIOTBASE)/Makefile.include
 

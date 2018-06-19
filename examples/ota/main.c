@@ -33,9 +33,6 @@
 #define MAIN_QUEUE_SIZE     (8)
 static msg_t _main_msg_queue[MAIN_QUEUE_SIZE];
 
-/* import "ifconfig" shell command, used for printing addresses */
-extern int _gnrc_netif_config(int argc, char **argv);
-
 /* must be sorted by path (alphabetically) */
 const coap_resource_t coap_resources[] = {
     COAP_WELL_KNOWN_CORE_DEFAULT_HANDLER,
@@ -46,23 +43,10 @@ const unsigned coap_resources_numof = sizeof(coap_resources) / sizeof(coap_resou
 
 int main(void)
 {
-    printf("RIOT OTA update over CoAP example application\n");
-
-    /* print some information about the running image */
-    unsigned current_slot = firmware_current_slot();
-    firmware_metadata_t *metadata = firmware_get_metadata(current_slot);
-    printf("firmware: running from slot %u\n", current_slot);
-    firmware_simple_print((firmware_simple_t*)metadata);
-
     /* nanocoap_server uses gnrc sock which uses gnrc which needs a msg queue */
     msg_init_queue(_main_msg_queue, MAIN_QUEUE_SIZE);
 
-    puts("Waiting for address autoconfiguration...");
     xtimer_sleep(3);
-
-    /* print network addresses */
-    puts("Configured network interfaces:");
-    _gnrc_netif_config(0, NULL);
 
     /* initialize nanocoap server instance */
     uint8_t buf[COAP_INBUF_SIZE];
