@@ -36,15 +36,12 @@ int main(void)
     /* we need a message queue for the thread running the shell in order to
      * receive potentially fast incoming networking packets */
     msg_init_queue(_main_msg_queue, MAIN_QUEUE_SIZE);
-    puts("RIOT suit OTA example application");
-    printf("Running from slot %i\n", firmware_current_slot());
     suit_uuid_init();
 
     firmware_manifest_run();
     ota_suit_run();
 
     /* start shell */
-    puts("All up and running");
     while(1) {
         xtimer_sleep(100);
     }
