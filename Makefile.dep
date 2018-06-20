@@ -736,7 +736,7 @@ endif
 
 ifneq (,$(filter rdcli_common,$(USEMODULE)))
   USEMODULE += fmt
-  USEMODULE += gcoap
+  USEMODULE += nanocoap_sock
   USEMODULE += luid
 endif
 
@@ -778,11 +778,17 @@ endif
 ifneq (,$(filter firmware_manifest,$(USEMODULE)))
   USEMODULE += firmware
   USEMODULE += sock_util
+  USEMODULE += suit
+  USEPKG += libcose
 endif
 
 ifneq (,$(filter suit,$(USEMODULE)))
   USEPKG += tinycbor
   USEMODULE += uuid
+endif
+
+ifneq (,$(filter lwm2m_firmware,$(USEMODULE)))
+  USEMODULE += firmware_manifest
 endif
 
 # always select gpio (until explicit dependencies are sorted out)
