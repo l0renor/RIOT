@@ -33,6 +33,7 @@ extern "C" {
  * @note    Use rdcli_common_get_ep() for accessing the endpoint identifier
  */
 extern char rdcli_ep[];
+extern char rdcli_path[];
 
 /**
  * @brief   Generate unique endpoint identifier (ep)
@@ -59,6 +60,18 @@ static inline const char *rdcli_common_get_ep(void)
  *  @return  <0 on error
  */
 int rdcli_common_add_qstring(coap_pkt_t *pkt);
+
+/**
+ * @brief   Add selected lwm2m query string options to a gcoap request
+ *
+ * This function adds:
+ *  - lwm2m with 1.0
+ *  - b with U
+ *
+ *  @return  0 on success
+ *  @return  <0 on error
+ */
+int rdcli_common_add_lwm2m_qstring(coap_pkt_t *pkt);
 
 #ifdef __cplusplus
 }

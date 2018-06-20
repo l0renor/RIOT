@@ -21,7 +21,10 @@
 #include <string.h>
 
 #include "fmt.h"
-#include "net/gcoap.h"
+#include "net/sock/udp.h"
+#include "sock_types.h"
+#include "net/nanocoap.h"
+#include "net/nanocoap_sock.h"
 #include "net/rdcli_config.h"
 #include "net/rdcli_common.h"
 #include "net/rdcli_simple.h"
@@ -29,10 +32,14 @@
 
 #define BUFSIZE             (128U)
 
+#define OPTIONS             "<3/0>,<5/0>"
+
 /* we don't want to allocate the CoAP packet and scratch buffer on the stack,
  * as they are too large for that. */
 static coap_pkt_t pkt;
 static uint8_t buf[BUFSIZE];
+static uint16_t mid = 3;
+
 
 int rdcli_simple_register(void)
 {
@@ -48,21 +55,42 @@ int rdcli_simple_register(void)
         return RDCLI_SIMPLE_NOADDR;
     }
 
-    /* build the initial CON packet */
-    if (gcoap_req_init(&pkt, buf, sizeof(buf), COAP_METHOD_POST,
-                             "/.well-known/core") < 0) {
-        return RDCLI_SIMPLE_ERROR;
+    pkt.hdr = (coap_hdr_t*)buf;
+    size_t len = 0;
+    if (rdcli_path[1]) {
+        len = coap_build_hdr(pkt.hdr, COAP_REQ, NULL, 0, COAP_METHOD_PUT, mid++);
     }
+    else {
+        len = coap_build_hdr(pkt.hdr, COAP_REQ, NULL, 0, COAP_METHOD_POST, mid++);
+    }
+    coap_pkt_init(&pkt, buf, sizeof(buf), len);
     /* make packet confirmable */
     coap_hdr_set_type(pkt.hdr, COAP_TYPE_CON);
-    /* add Uri-Query options */
-    if (rdcli_common_add_qstring(&pkt) < 0) {
-        return RDCLI_SIMPLE_ERROR;
+    if (rdcli_path[0]) {
+        coap_opt_add_string(&pkt, COAP_OPT_URI_PATH, rdcli_path, '/');
     }
-    /* finish, we don't have any payload */
-    ssize_t len = gcoap_finish(&pkt, 0, COAP_FORMAT_LINK);
-    if (gcoap_req_send2(buf, len, &remote, NULL) == 0) {
-        return RDCLI_SIMPLE_ERROR;
+    else {
+        coap_opt_add_string(&pkt, COAP_OPT_URI_PATH, "/rd", '/');
+    }
+    coap_opt_add_uint(&pkt, COAP_OPT_CONTENT_FORMAT, COAP_FORMAT_TEXT);
+
+    /* add Uri-Query options */
+    rdcli_common_add_qstring(&pkt);
+#ifdef MODULE_RDCLI_LWM2M
+    coap_opt_finish(&pkt, COAP_OPT_FINISH_PAYLOAD);
+    memcpy(pkt.payload, OPTIONS, sizeof(OPTIONS));
+    pkt.payload_len = sizeof(OPTIONS);
+#else
+    coap_opt_finish(&pkt, 0);
+#endif
+
+
+    sock_udp_ep_t local = { .port=COAP_PORT, .family=AF_INET6 };
+    int res = nanocoap_request(&pkt, &local, &remote, sizeof(buf) );
+    if (res > 0) {
+        if (coap_get_code_raw(&pkt) == COAP_CODE_CREATED) {
+           coap_get_location(&pkt, (uint8_t*)rdcli_path);
+        }
     }
 
     return RDCLI_SIMPLE_OK;

@@ -64,6 +64,7 @@ extern "C" {
  */
 #define COAP_OPT_URI_HOST       (3)
 #define COAP_OPT_OBSERVE        (6)
+#define COAP_OPT_LOCATION_PATH  (8)
 #define COAP_OPT_URI_PATH       (11)
 #define COAP_OPT_CONTENT_FORMAT (12)
 #define COAP_OPT_URI_QUERY      (15)
@@ -636,6 +637,7 @@ unsigned coap_get_content_type(coap_pkt_t *pkt);
  */
 int coap_get_uri(coap_pkt_t *pkt, uint8_t *target);
 
+int coap_get_location(coap_pkt_t *pkt, uint8_t *target);
 /**
  * @brief Initialize a block2 response
  *

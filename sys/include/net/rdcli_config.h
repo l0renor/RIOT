@@ -67,7 +67,7 @@ extern "C" {
  *
  * @note    Must be an even number
  */
-#define RDCLI_EP_SUFFIX_LEN     (16)
+#define RDCLI_EP_SUFFIX_LEN     (4)
 
 /**
  * @brief   Default static prefix used for the generated ep

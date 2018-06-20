@@ -21,7 +21,7 @@
 #include "fmt.h"
 #include "luid.h"
 
-#include "net/gcoap.h"
+#include "net/nanocoap.h"
 #include "net/rdcli_common.h"
 
 #define ENABLE_DEBUG (0)
@@ -36,6 +36,7 @@
 #endif
 
 char rdcli_ep[BUFSIZE];
+char rdcli_path[NANOCOAP_URI_MAX];
 
 void rdcli_common_init(void)
 {
@@ -52,33 +53,49 @@ void rdcli_common_init(void)
     fmt_bytes_hex(&rdcli_ep[PREFIX_LEN - 1], luid, sizeof(luid));
     rdcli_ep[BUFSIZE - 1] = '\0';
 #endif
+    memset(rdcli_path, 0, sizeof(rdcli_path));
 }
 
 int rdcli_common_add_qstring(coap_pkt_t *pkt)
 {
-    /* extend the url with some query string options */
-    int res = gcoap_add_qstring(pkt, "ep", rdcli_ep);
-    if (res < 0) {
-        return res;
-    }
+    char buf[64];
+    char *pos = buf;
+    *pos++ = '&';
 
-    /* [optional] set the lifetime parameter */
-#if RDCLI_LT
-    char lt[11];
-    lt[fmt_u32_dec(lt, RDCLI_LT)] = '\0';
-    res = gcoap_add_qstring(pkt, "lt", lt);
-    if (res < 0) {
-        return res;
-    }
-#endif
+    size_t len = strlen("lt");
+    strncpy(pos, "lt", len);
+    pos += 2;
+    *pos++ = '=';
+    pos += fmt_u32_dec(pos, RDCLI_LT);
+    if (!rdcli_path[1]) {
+        *pos++ = '&';
+        len = strlen("ep");
+        strcpy(pos, "ep");
+        pos += len;
+        *pos++ = '=';
+        strcpy(pos, rdcli_ep);
+        pos += strlen(rdcli_ep);
 
-    /* [optional] set the domain parameter */
+        *pos++ = '&';
+
 #ifdef RDCLI_D
-    res = gcoap_add_qstring(pkt, "d", RDCLI_D);
-    if (res < 0) {
-        return res;
-    }
-#endif
+        *pos++ = '&';
 
-    return 0;
+        *pos++ = 'd';
+
+        strncpy(pos, RDCLI_D);
+        pos += strlen(RDCLI_D);
+#endif
+#ifdef MODULE_RDCLI_LWM2M
+        *pos++ = '&';
+        strcpy(pos, "lwm2m=1.0");
+        pos += strlen("lwm2m=1.0");
+        *pos++ = '&';
+        strcpy(pos, "b=U");
+        pos += strlen("b=U");
+#endif
+    }
+    *pos++ = '\0';
+    /* extend the url with some query string options */
+    return coap_opt_add_string(pkt, COAP_OPT_URI_QUERY, buf, '&');
 }

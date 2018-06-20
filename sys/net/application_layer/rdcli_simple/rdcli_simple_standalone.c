@@ -52,5 +52,5 @@ static void *reg_runner(void *arg)
 
 void rdcli_simple_run(void)
 {
-    thread_create(_stack, sizeof(_stack), PRIO, 0, reg_runner, NULL, TNAME);
+    thread_create(_stack, sizeof(_stack), PRIO, THREAD_CREATE_STACKTEST, reg_runner, NULL, TNAME);
 }

@@ -39,7 +39,7 @@ static cose_key_t key;
 static cose_sign_t cose_in;
 
 /* Updater state */
-static firmware_manifest_t _fw_man;
+firmware_manifest_t _fw_man;
 
 static ssize_t fetch_block(firmware_manifest_t *state, unsigned num, sock_udp_ep_t *local);
 static bool _check_timestamp(firmware_manifest_t *state);
@@ -200,6 +200,12 @@ static bool _check_digest(firmware_manifest_t *state, uint8_t *digest)
 /* Add manifest bytes */
 int firmware_manifest_putbytes(uint8_t *buf, size_t len, size_t offset, bool more)
 {
+    if (more) {
+        _fw_man.state = 1;
+    }
+    else {
+        _fw_man.state = 2;
+    }
     if (!mutex_trylock(&_fw_man.lock)) {
         return -1;
     }
@@ -214,14 +220,15 @@ int firmware_manifest_putbytes(uint8_t *buf, size_t len, size_t offset, bool mor
         memcpy(&_fw_man.mbuf[offset], buf, len);
         _fw_man.mbuf_len += len;
     }
-    if (!more) {
-        /* Signal event */
-        msg_t msg = { .type = OTA_MANIFEST_MSG_MANIFEST };
-        msg.content.value = offset + len;
-        msg_try_send(&msg, _fw_man.pid);
-    }
     mutex_unlock(&_fw_man.lock);
     return 0;
+}
+
+void firmware_manifest_update(void)
+{
+    msg_t msg = { .type = OTA_MANIFEST_MSG_MANIFEST };
+    msg_try_send(&msg, _fw_man.pid);
+    _fw_man.state = 3;
 }
 
 static int _manifest_verify(firmware_manifest_t *state)
@@ -233,6 +240,8 @@ static int _manifest_verify(firmware_manifest_t *state)
             state->mbuf_len);
     if (res != 0) {
         LOG_WARNING("Could not decode cose struct: %d\n", res);
+        state->state = 0;
+        state->result = 6;
         return res;
     }
     {
@@ -245,34 +254,49 @@ static int _manifest_verify(firmware_manifest_t *state)
             sizeof(verification_buf));
     if (res != 0) {
         LOG_WARNING("Could not verify cose struct: %d\n", res);
+        state->state = 0;
+        state->result = 6;
         return res;
     }
     /* Parse manifest */
     res = suit_parse(&state->manifest, cose_in.payload, cose_in.payload_len);
     if (res < 0) {
+        LOG_WARNING("Could not parse manifest: %d\n", res);
+        state->state = 0;
+        state->result = 6;
         return res;
     }
     if (suit_verify_conditions(&state->manifest, firmware_manifest_get_time()) != SUIT_OK)
     {
         LOG_WARNING("Conditionals failure, ignoring update\n");
+        state->state = 0;
+        state->result = 6;
         return -1;
     }
     if (!_check_timestamp(state)) {
         LOG_WARNING("Timestamp failure, ignoring update\n");
+        state->state = 0;
+        state->result = 6;
         return -1;
     }
     char path[128];
     char hostport[SOCK_HOSTPORT_MAXLEN];
     if (suit_get_url(&state->manifest, path, sizeof(path)) < 0) {
         LOG_ERROR("ota: Unable to get url\n");
+        state->state = 0;
+        state->result = 7;
         return -1;
     }
     if (sock_urlsplit(path, hostport, state->path) < 0) {
         LOG_ERROR("ota: Unable to parse url\n");
+        state->state = 0;
+        state->result = 7;
         return -1;
     }
     if (sock_udp_str2ep(&state->remote, hostport) < 0) {
         LOG_ERROR("ota: Unable to parse url\n");
+        state->state = 0;
+        state->result = 7;
         return -1;
     }
     return 0;
@@ -289,12 +313,16 @@ static int suit_finish_update(firmware_manifest_t* state)
     sha256((uint32_t*)metadata->start_addr, state->manifest.size, digest);
     if (!_check_digest(state, digest)) {
         LOG_WARNING("firmware_manifest: Digest check failure\n");
+        state->state = 0;
+        state->result = 5;
         return -1;
     }
 
     metadata->version = state->manifest.timestamp;
     metadata->chksum = firmware_metadata_checksum(metadata);
 
+    state->state = 0;
+    state->result = 1;
     return firmware_flashwrite_finish(&state->writer, metadata, sizeof(firmware_metadata_t));
 }
 

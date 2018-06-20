@@ -57,13 +57,15 @@ typedef struct {
     size_t mbuf_len;
     mutex_t lock;
     kernel_pid_t pid;
-    memarray_t storage;
     suit_manifest_t manifest;
     firmware_flashwrite_t writer;
+    uint8_t state;
+    uint8_t result;
 } firmware_manifest_t;
 
 void firmware_manifest_run(void);
 int firmware_manifest_putbytes(uint8_t *buf, size_t len, size_t offset, bool more);
+void firmware_manifest_update(void);
 uint64_t firmware_manifest_get_time(void);
 
 #ifdef __cplusplus
