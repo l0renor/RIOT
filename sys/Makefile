@@ -124,6 +124,9 @@ endif
 ifneq (,$(filter nanocoap,$(USEMODULE)))
   DIRS += net/application_layer/nanocoap
 endif
+ifneq (,$(filter lwm2m,$(USEMODULE)))
+  DIRS += net/application_layer/lwm2m
+endif
 ifneq (,$(filter skald,$(USEMODULE)))
   DIRS += net/skald
 endif
