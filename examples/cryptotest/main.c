@@ -40,6 +40,8 @@
 #elif MODULE_C25519
 #include "edsign.h"
 #include "ed25519.h"
+#elif MODULE_QDSA
+#include "sign.h"
 #endif
 
 
@@ -53,6 +55,10 @@
 #elif defined(MODULE_C25519)
 #define SECRETKEYBYTES  EDSIGN_SECRET_KEY_SIZE
 #define PUBLICKEYBYTES  EDSIGN_PUBLIC_KEY_SIZE
+#elif defined(MODULE_QDSA)
+#define  SECRETKEYBYTES 64
+#define  PUBLICKEYBYTES 32
+#define SMLEN (sizeof(message) + 64)
 #endif
 
 static uint8_t message[200];
@@ -100,7 +106,7 @@ static unsigned char sm[SMLEN] = {
     0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa,
     0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa
 };
-#endif
+#endif /* DO_SIGN */
 #endif
 
 static uint32_t middle, after = 0;
@@ -121,8 +127,14 @@ static struct tc_sha256_state_struct sha;
 static uint8_t signature[EDSIGN_SIGNATURE_SIZE];
 #endif
 
+#ifdef MODULE_QDSA
+static unsigned char verify_result[SMLEN];
+static unsigned char sm[SMLEN];
+long long unsigned int smlen = 0;
+#endif
+
 #ifdef DO_SIGN
-static void keypair(uint8_t *pk, uint8_t *sk)
+static void gen_keypair(uint8_t *pk, uint8_t *sk)
 {
 #if  defined(MODULE_HACL) || defined(MODULE_TWEETNACL)
     crypto_sign_keypair(pk, sk);
@@ -132,6 +144,9 @@ static void keypair(uint8_t *pk, uint8_t *sk)
     random_bytes(sk, sizeof(sk));
     ed25519_prepare(sk);
     edsign_sec_to_pub(pk, sk);
+#elif defined(MODULE_QDSA)
+    random_bytes(sk, 32);
+    keypair(pk, sk);
 #endif
 }
 #endif
@@ -164,7 +179,7 @@ int main(void)
     memset(sm, '\0', SMLEN);
 #endif
     /* Creating keypair ... */
-    keypair(sign_pk, sign_sk);
+    gen_keypair(sign_pk, sign_sk);
     tbefore = stacksz - thread_measure_stack_free(p->stack_start);
     before = xtimer_now_usec();
 
@@ -178,6 +193,8 @@ int main(void)
     uECC_sign(sign_sk, digest, 32, signature, &curve_secp256r1);
 #elif defined(MODULE_C25519)
 	edsign_sign(signature, sign_pk, sign_sk, message, sizeof(message));
+#elif defined(MODULE_QDSA)
+    sign(sm, &smlen, message, sizeof(message), sign_pk, sign_sk);
 #endif
 #endif /* DO_SIGN */
     middle = xtimer_now_usec();
@@ -192,6 +209,8 @@ int main(void)
     int res = uECC_verify(sign_pk, digest, 32, signature, &curve_secp256r1);
 #elif defined(MODULE_C25519)
     int res = edsign_verify(signature, sign_pk, message, sizeof(message));
+#elif defined(MODULE_QDSA)
+    int res = verify(verify_result, 0, sm, smlen, sign_pk);
 #endif
     after = xtimer_now_usec();
     tafter = stacksz - thread_measure_stack_free(p->stack_start);
