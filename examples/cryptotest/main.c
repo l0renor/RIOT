@@ -110,12 +110,16 @@ static unsigned char sm[SMLEN] = {
 #endif
 
 static uint32_t middle, after = 0;
+#ifdef DEVELHELP
 static uint32_t tstart, tmiddle, tafter = 0;
+static int stacksz;
+#endif
 #ifdef DO_SIGN
 static uint32_t before = 0;
+#ifdef DEVELHELP
 static uint32_t tbefore = 0;
 #endif
-static int stacksz;
+#endif
 
 #ifdef MODULE_TINYCRYPT
 static uint8_t signature[32];
@@ -168,9 +172,11 @@ void print_bstr(uint8_t *d, size_t l)
 
 int main(void)
 {
+#ifdef DEVELHELP
     thread_t *p = (thread_t *)sched_threads[sched_active_pid];
     stacksz = p->stack_size;
     tstart = stacksz - thread_measure_stack_free(p->stack_start);
+#endif
 
 #ifdef DO_SIGN
     memset(message, 0xaa, sizeof(message));
@@ -180,7 +186,9 @@ int main(void)
 #endif
     /* Creating keypair ... */
     gen_keypair(sign_pk, sign_sk);
+#ifdef DEVELHELP
     tbefore = stacksz - thread_measure_stack_free(p->stack_start);
+#endif
     before = xtimer_now_usec();
 
     /* Sign */
@@ -198,7 +206,9 @@ int main(void)
 #endif
 #endif /* DO_SIGN */
     middle = xtimer_now_usec();
+#ifdef DEVELHELP
     tmiddle = stacksz - thread_measure_stack_free(p->stack_start);
+#endif
     /* Verifying... */
 #if  defined(MODULE_HACL) || defined(MODULE_TWEETNACL)
     int res = crypto_sign_open(verify_result, &verify_result_len, sm, smlen, sign_pk);
@@ -213,7 +223,9 @@ int main(void)
     int res = verify(verify_result, 0, sm, smlen, sign_pk);
 #endif
     after = xtimer_now_usec();
+#ifdef DEVELHELP
     tafter = stacksz - thread_measure_stack_free(p->stack_start);
+#endif
 
     printf("Res: %d, "
 #ifdef DO_SIGN
@@ -224,6 +236,8 @@ int main(void)
             (long unsigned) before,
 #endif
             (long unsigned)middle, (long unsigned)after);
+
+#ifdef DEVELHELP
     printf("Stack start: %lu, "
 #ifdef DO_SIGN
            "before: %lu, "
@@ -233,6 +247,7 @@ int main(void)
            (long unsigned)tbefore,
 #endif
            (long unsigned)tmiddle, (long unsigned)tafter);
+#endif
     printf("\n");
     printf(
 #ifdef DO_SIGN
@@ -243,6 +258,7 @@ int main(void)
         (long unsigned)((middle - before)/US_PER_MS),
 #endif
         (long unsigned)((after - middle)/US_PER_MS));
+#ifdef DEVELHELP
     printf("stack usage:"
 #ifdef DO_SIGN
            "signing: %lu, "
@@ -252,6 +268,7 @@ int main(void)
            (long unsigned)(tmiddle - tstart),
 #endif
            (long unsigned)(tafter - tstart));
+#endif
 
     while(1) {}
     return 0;
