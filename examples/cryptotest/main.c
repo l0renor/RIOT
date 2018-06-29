@@ -249,21 +249,21 @@ int main(void)
            (long unsigned)tmiddle, (long unsigned)tafter);
 #endif
     printf("\n");
-    printf(
+    printf("Timing:"
 #ifdef DO_SIGN
-        "Signing: %lums, "
+        "Result:\t%lums\t"
 #endif
-        "verify %lums\n",
+        "%lums\n",
 #ifdef DO_SIGN
         (long unsigned)((middle - before)/US_PER_MS),
 #endif
         (long unsigned)((after - middle)/US_PER_MS));
 #ifdef DEVELHELP
-    printf("stack usage:"
+    printf("stack :"
 #ifdef DO_SIGN
-           "signing: %lu, "
+           "Result:\t%luB\t"
 #endif
-           "verify: %lu\n",
+           "%luB\n",
 #ifdef DO_SIGN
            (long unsigned)(tmiddle - tstart),
 #endif
