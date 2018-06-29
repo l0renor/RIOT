@@ -40,6 +40,8 @@
 #elif MODULE_C25519
 #include "edsign.h"
 #include "ed25519.h"
+#elif MODULE_MONOCYPHER
+#include "monocypher.h"
 #elif MODULE_QDSA
 #include "sign.h"
 #endif
@@ -55,6 +57,9 @@
 #elif defined(MODULE_C25519)
 #define SECRETKEYBYTES  EDSIGN_SECRET_KEY_SIZE
 #define PUBLICKEYBYTES  EDSIGN_PUBLIC_KEY_SIZE
+#elif defined(MODULE_MONOCYPHER)
+#define SECRETKEYBYTES  32
+#define PUBLICKEYBYTES  32
 #elif defined(MODULE_QDSA)
 #define  SECRETKEYBYTES 64
 #define  PUBLICKEYBYTES 32
@@ -127,8 +132,8 @@ static uint8_t digest[32];
 static struct tc_sha256_state_struct sha;
 #endif
 
-#ifdef MODULE_C25519
-static uint8_t signature[EDSIGN_SIGNATURE_SIZE];
+#if defined(MODULE_C25519) || defined(MODULE_MONOCYPHER)
+static uint8_t signature[64];
 #endif
 
 #ifdef MODULE_QDSA
@@ -148,6 +153,9 @@ static void gen_keypair(uint8_t *pk, uint8_t *sk)
     random_bytes(sk, sizeof(sk));
     ed25519_prepare(sk);
     edsign_sec_to_pub(pk, sk);
+#elif defined(MODULE_MONOCYPHER)
+    random_bytes(sk, sizeof(sk));
+    crypto_sign_public_key(pk, sk);
 #elif defined(MODULE_QDSA)
     random_bytes(sk, 32);
     keypair(pk, sk);
@@ -201,6 +209,8 @@ int main(void)
     uECC_sign(sign_sk, digest, 32, signature, &curve_secp256r1);
 #elif defined(MODULE_C25519)
 	edsign_sign(signature, sign_pk, sign_sk, message, sizeof(message));
+#elif defined(MODULE_MONOCYPHER)
+    crypto_sign(signature, sign_sk, sign_pk, message, sizeof(message));
 #elif defined(MODULE_QDSA)
     sign(sm, &smlen, message, sizeof(message), sign_pk, sign_sk);
 #endif
@@ -219,6 +229,8 @@ int main(void)
     int res = uECC_verify(sign_pk, digest, 32, signature, &curve_secp256r1);
 #elif defined(MODULE_C25519)
     int res = edsign_verify(signature, sign_pk, message, sizeof(message));
+#elif defined(MODULE_MONOCYPHER)
+    int res = crypto_check(signature, sign_pk, message, sizeof(message));
 #elif defined(MODULE_QDSA)
     int res = verify(verify_result, 0, sm, smlen, sign_pk);
 #endif
