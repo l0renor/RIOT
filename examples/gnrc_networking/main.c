@@ -22,6 +22,17 @@
 
 #include "shell.h"
 #include "msg.h"
+#include "sam_usb.h"
+#include "usb/usbman.h"
+#include "cpu.h"
+
+#define USBMAN_STACKSIZE           (THREAD_STACKSIZE_DEFAULT)
+#define USBMAN_PRIO                (THREAD_PRIORITY_MAIN - 6)
+#define USBMAN_TNAME               "usb"
+
+extern const usbdev_driver_t driver;
+static char _stack[USBMAN_STACKSIZE];
+static sam0_common_usb_t usbdev;
 
 #define MAIN_QUEUE_SIZE     (8)
 static msg_t _main_msg_queue[MAIN_QUEUE_SIZE];
@@ -35,6 +46,9 @@ static const shell_command_t shell_commands[] = {
 
 int main(void)
 {
+    usbdev.usbdev.driver = &driver;
+    usbman_create(_stack, USBMAN_STACKSIZE, USBMAN_PRIO,
+                   USBMAN_TNAME, &usbdev.usbdev );
     /* we need a message queue for the thread running the shell in order to
      * receive potentially fast incoming networking packets */
     msg_init_queue(_main_msg_queue, MAIN_QUEUE_SIZE);

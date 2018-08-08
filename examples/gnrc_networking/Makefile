@@ -2,7 +2,7 @@
 APPLICATION = gnrc_networking
 
 # If no BOARD is found in the environment, use this default:
-BOARD ?= native
+BOARD ?= samr21-xpro
 
 # This has to be the absolute path to the RIOT base directory:
 RIOTBASE ?= $(CURDIR)/../..
@@ -34,6 +34,9 @@ USEMODULE += ps
 USEMODULE += netstats_l2
 USEMODULE += netstats_ipv6
 USEMODULE += netstats_rpl
+
+USEMODULE += sam_usb
+USEMODULE += usbman
 
 # Comment this out to disable code in RIOT that does safety checking
 # which is not needed in a production environment but helps in the
