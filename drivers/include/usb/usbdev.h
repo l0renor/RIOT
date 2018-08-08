@@ -13,16 +13,20 @@
 extern "C" {
 #endif
 
-typedef struct usbdev {
-} usbdev_t;
+#include "usb.h"
+#include "usb/usbopt.h"
+
+
+typedef struct usbdev_driver usbdev_driver_t;
+typedef struct usbdev usbdev_t;
 
 /**
  * @brief   Possible event types that are send from the device driver to the
  *          upper layer
  */
 typedef enum {
-    USBDEV_EVENT_ISR,                       /**< driver needs it's ISR handled */
-    USBDEV_EVENT_OUT_READY,                 /**< endpoint out data  ready */
+    USBDEV_EVENT_ESR,                       /**< Driver needs it's ISR handled */
+    USBDEV_EVENT_OUT_READY,                 /**< Endpoint out data ready */
     /* expand this list if needed */
 } usbdev_event_t;
 
@@ -31,23 +35,31 @@ typedef enum {
     USBDEV_EP_TYPE_INTERRUPT,
     USBDEV_EP_TYPE_BULK,
     USBDEV_EP_TYPE_ISOCHRONOUS,
-    USBDEV_EP_TYPE_ASYNCRONOUS,
+    USBDEV_EP_TYPE_ASYNCHRONOUS,
 } usbdev_ep_type_t;
 
-typedef struct usbdev_ep {
-    uint8_t dir;
-} usbdev_ep_t;
+typedef enum {
+    USBDEV_DIR_OUT, /* Host out, device in */
+    USBDEV_DIR_IN,  /* Host in, device out */
+} usbdev_dir_t;
 
-typedef struct usbdev_ep_pair {
-    usbdev_ep_t out;
-    usbdev_ep_t in;
-    uint8_t num;                /* Endpoint pair numbers */
-    usb_ep_type_t type;         /* Endpoint type (e.g. bulk, interrupt) */
-} usbdev_ep_pair_t;
+struct usbdev {
+    const struct usbdev_driver *driver;
+    void (*cb)(usbdev_t *usbdev, usbdev_event_t event);
+    void *context;
+};
 
+typedef struct usbdev_ep usbdev_ep_t;
 
-typedef struct {
-    int (*init)(usbdev_ep_pair_t ep);
+struct usbdev_ep {
+    usbdev_dir_t dir;
+    usbdev_ep_type_t type;         /* Endpoint type (e.g. bulk, interrupt) */
+    uint8_t num;                /* Endpoint number */
+    void (*cb)(usbdev_ep_t *ep, usbdev_event_t event);
+};
+
+struct usbdev_driver {
+    int (*init)(usbdev_t *usbdev);
 
     /**
      * @brief   Get an option value from a given usb device endpoint
@@ -62,7 +74,7 @@ typedef struct {
      * @return              number of bytes written to @p value
      * @return              `< 0` on error, 0 on success
      */
-    int (*get)(usbdev_ep_pair_t *ep, usbopt_t opt,
+    int (*get)(usbdev_t *usbdev, usbopt_t opt,
                void *value, size_t max_len);
 
     /**
@@ -78,7 +90,60 @@ typedef struct {
      * @return              number of bytes used from @p value
      * @return              `< 0` on error, 0 on success
      */
-    int (*set)(usbdev_ep_pair_t *dev, netopt_t opt,
+    int (*set)(usbdev_t *usbdev, usbopt_t opt,
+               const void *value, size_t value_len);
+    /**
+     * @brief a driver's user-space event service handler
+     *
+     * @pre `(dev != NULL)`
+     *
+     * This function will be called from a network stack's loop when being
+     * notified by netdev_isr.
+     *
+     * It is supposed to call
+     * @ref netdev_t::event_callback "netdev->event_callback()" for each
+     * occurring event.
+     *
+     * See receive packet flow description for details.
+     *
+     * @param[in]   dev     network device descriptor
+     */
+    void (*esr)(usbdev_t *dev);
+};
+
+typedef struct {
+    int (*init)(usbdev_ep_t ep);
+
+    /**
+     * @brief   Get an option value from a given usb device endpoint
+     *
+     * @pre `(dev != NULL)`
+     *
+     * @param[in]   dev     network device descriptor
+     * @param[in]   opt     option type
+     * @param[out]  value   pointer to store the option's value in
+     * @param[in]   max_len maximal amount of byte that fit into @p value
+     *
+     * @return              number of bytes written to @p value
+     * @return              `< 0` on error, 0 on success
+     */
+    int (*get)(usbdev_ep_t *ep, usbopt_ep_t opt,
+               void *value, size_t max_len);
+
+    /**
+     * @brief   Set an option value for a given usb device endpoint
+     *
+     * @pre `(dev != NULL)`
+     *
+     * @param[in] dev       network device descriptor
+     * @param[in] opt       option type
+     * @param[in] value     value to set
+     * @param[in] value_len the length of @p value
+     *
+     * @return              number of bytes used from @p value
+     * @return              `< 0` on error, 0 on success
+     */
+    int (*set)(usbdev_ep_t *ep, usbopt_ep_t opt,
                const void *value, size_t value_len);
     /**
      * @brief a driver's user-space ISR handler
@@ -101,13 +166,9 @@ typedef struct {
     /**
      * @brief Signal out data buffer (Host to device) ready for new data
      */
-    int (*out_ready)(usbdev_ep_pair_t *ep);
-
-    /**
-     * @brief Signal in data buffer (device to host) ready for reading.
-     */
-    int (*in_ready)(usbdev_ep_pair_t *ep);
+    int (*buf_ready)(usbdev_ep_t *ep);
 } usbdev_ep_driver_t;
+
 /**
  * activate pull up to indicate device connected
  */
@@ -123,7 +184,7 @@ int usbdev_detach(usbdev_t *dev);
  *
  * @returns         NULL if the endpoint type is not available.
  */
-usbdev_ep_pair_t *usbdev_get_ep(usbdev_t *dev, usb_ep_type_t type);
+usbdev_ep_t *usbdev_get_ep(usbdev_t *dev, usbdev_ep_type_t type, usbdev_dir_t dir);
 
 #ifdef __cplusplus
 }

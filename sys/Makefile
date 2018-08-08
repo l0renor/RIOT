@@ -137,6 +137,10 @@ ifneq (,$(filter rdcli_simple,$(USEMODULE)))
     DIRS += net/application_layer/rdcli_simple
 endif
 
+ifneq (,$(filter usbman,$(USEMODULE)))
+    DIRS += usb/usbman
+endif
+
 DIRS += $(dir $(wildcard $(addsuffix /Makefile, $(USEMODULE))))
 
 include $(RIOTBASE)/Makefile.base

@@ -10,7 +10,7 @@
 #define USB_H
 
 #ifdef __cplusplus
-extern "C" {
+extern "c" {
 #endif
 
 #include <stdint.h>
