@@ -37,10 +37,15 @@ extern "C" {
 #endif
 
 #define USBDEV_MSG_TYPE_EVENT   (0x1234)
+#define USBDEV_MSG_TYPE_EP0IN_EVENT   (0x1235)
+#define USBDEV_MSG_TYPE_EP0OUT_EVENT   (0x1236)
 
 typedef struct {
+    usbdev_ep_t *out;                       /**< EP0 out endpoint */
+    usbdev_ep_t *in;                        /**< EP0 in endpoint */
     usbdev_t *dev;                          /**< usb phy device of the usb manager */
     kernel_pid_t pid;                       /**< PID of the usb manager's thread */
+    uint16_t addr;
 } usbman_t;
 
 void usbman_create(char *stack, int stacksize, char priority,

@@ -29,12 +29,15 @@ typedef enum {
     /**
      * @brief getter for endpoint 0
      */
-    USBOPT_EP0,
+    USBOPT_EP0_IN,
+    USBOPT_EP0_OUT,
     USBOPT_ATTACH,
 } usbopt_t;
 
 typedef enum {
-    USBOPT_BUF_ADDR,
+    USBOPT_EP_BUF_ADDR,
+    USBOPT_EP_BUF_SIZE,
+    USBOPT_EP_ENABLE,
 } usbopt_ep_t;
 
 #ifdef __cplusplus

@@ -18,6 +18,7 @@ extern "C" {
 
 
 typedef struct usbdev_driver usbdev_driver_t;
+typedef struct usbdev_ep_driver usbdev_ep_driver_t;
 typedef struct usbdev usbdev_t;
 
 /**
@@ -26,6 +27,9 @@ typedef struct usbdev usbdev_t;
  */
 typedef enum {
     USBDEV_EVENT_ESR,                       /**< Driver needs it's ISR handled */
+    USBDEV_EVENT_RESET,                     /**< Line reset event */
+    USBDEV_EVENT_TR_COMPLETE,
+    USBDEV_EVENT_RX_SETUP,                  /**< Received setup transaction */
     USBDEV_EVENT_OUT_READY,                 /**< Endpoint out data ready */
     /* expand this list if needed */
 } usbdev_event_t;
@@ -35,7 +39,6 @@ typedef enum {
     USBDEV_EP_TYPE_INTERRUPT,
     USBDEV_EP_TYPE_BULK,
     USBDEV_EP_TYPE_ISOCHRONOUS,
-    USBDEV_EP_TYPE_ASYNCHRONOUS,
 } usbdev_ep_type_t;
 
 typedef enum {
@@ -52,10 +55,12 @@ struct usbdev {
 typedef struct usbdev_ep usbdev_ep_t;
 
 struct usbdev_ep {
+    const struct usbdev_ep_driver *driver;
     usbdev_dir_t dir;
     usbdev_ep_type_t type;         /* Endpoint type (e.g. bulk, interrupt) */
     uint8_t num;                /* Endpoint number */
     void (*cb)(usbdev_ep_t *ep, usbdev_event_t event);
+    void *context;
 };
 
 struct usbdev_driver {
@@ -111,8 +116,8 @@ struct usbdev_driver {
     void (*esr)(usbdev_t *dev);
 };
 
-typedef struct {
-    int (*init)(usbdev_ep_t ep);
+struct usbdev_ep_driver {
+    int (*init)(usbdev_ep_t *ep);
 
     /**
      * @brief   Get an option value from a given usb device endpoint
@@ -161,13 +166,13 @@ typedef struct {
      *
      * @param[in]   dev     network device descriptor
      */
-    void (*isr)(usbdev_ep_t *dev);
+    void (*esr)(usbdev_ep_t *ep);
 
     /**
      * @brief Signal out data buffer (Host to device) ready for new data
      */
-    int (*buf_ready)(usbdev_ep_t *ep);
-} usbdev_ep_driver_t;
+    int (*ready)(usbdev_ep_t *ep, size_t len);
+};
 
 /**
  * activate pull up to indicate device connected

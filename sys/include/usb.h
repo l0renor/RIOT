@@ -75,6 +75,14 @@ typedef struct __attribute__((packed)) {
     uint8_t type;
 } usb_descriptor_string_t;
 
+typedef struct __attribute__((packed)) {
+    uint8_t type;
+    uint8_t request;
+    uint16_t value;
+    uint16_t index;
+    uint16_t length;
+} usb_setup_t;
+
 
 #ifdef __cplusplus
 }
