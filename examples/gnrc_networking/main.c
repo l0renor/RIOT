@@ -37,10 +37,7 @@ static sam0_common_usb_t usbdev;
 #define MAIN_QUEUE_SIZE     (8)
 static msg_t _main_msg_queue[MAIN_QUEUE_SIZE];
 
-extern int udp_cmd(int argc, char **argv);
-
 static const shell_command_t shell_commands[] = {
-    { "udp", "send data over UDP and listen on UDP ports", udp_cmd },
     { NULL, NULL, NULL }
 };
 
