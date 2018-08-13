@@ -13,19 +13,13 @@ BOARD_INSUFFICIENT_MEMORY := calliope-mini chronos hifive1 microbit msb-430 msb-
                              nucleo-f334r8 nucleo-l053r8 spark-core stm32f0discovery telosb \
                              wsn430-v1_3b wsn430-v1_4 z1
 
-# Include packages that pull up and auto-init the link layer.
-# NOTE: 6LoWPAN will be included if IEEE802.15.4 devices are present
-# Specify the mandatory networking modules for IPv6 and UDP
-# Add a routing protocol
-# This application dumps received packets to STDIO using the pktdump module
-# Additional networking modules that can be dropped if not needed
 # Add also the shell, some shell commands
 USEMODULE += shell
 USEMODULE += shell_commands
 USEMODULE += ps
 
-USEMODULE += sam_usb
 USEMODULE += usbman
+USEMODULE += sam_usb
 
 # Comment this out to disable code in RIOT that does safety checking
 # which is not needed in a production environment but helps in the
