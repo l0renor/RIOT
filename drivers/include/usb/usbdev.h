@@ -16,7 +16,6 @@ extern "C" {
 #include "usb.h"
 #include "usb/usbopt.h"
 
-
 typedef struct usbdev_driver usbdev_driver_t;
 typedef struct usbdev_ep_driver usbdev_ep_driver_t;
 typedef struct usbdev usbdev_t;
@@ -28,10 +27,10 @@ typedef struct usbdev usbdev_t;
 typedef enum {
     USBDEV_EVENT_ESR,                       /**< Driver needs it's ISR handled */
     USBDEV_EVENT_RESET,                     /**< Line reset event */
-    USBDEV_EVENT_TR_COMPLETE,
     USBDEV_EVENT_RX_SETUP,                  /**< Received setup transaction */
-    USBDEV_EVENT_OUT_READY,                 /**< Endpoint out data ready */
-    /* expand this list if needed */
+    USBDEV_EVENT_TR_COMPLETE,               /**< Transaction completed */
+    USBDEV_EVENT_TR_STALL,                  /**< Transaction stalled */
+    USBDEV_EVENT_TR_ERR,                    /**< Transaction Error occured */
 } usbdev_event_t;
 
 typedef enum {
@@ -64,7 +63,17 @@ struct usbdev_ep {
 };
 
 struct usbdev_driver {
-    int (*init)(usbdev_t *usbdev);
+
+    /**
+     * @brief Initialize the USB peripheral device
+     *
+     * This initializes the USB device but should not enable the USB pull up.
+     *
+     * @pre `(dev != NULL)`
+     *
+     * @param[in]   dev     USB device descriptor
+     */
+     void (*init)(usbdev_t *usbdev);
 
     /**
      * @brief   Get an option value from a given usb device endpoint
@@ -117,7 +126,7 @@ struct usbdev_driver {
 };
 
 struct usbdev_ep_driver {
-    int (*init)(usbdev_ep_t *ep);
+    void (*init)(usbdev_ep_t *ep);
 
     /**
      * @brief   Get an option value from a given usb device endpoint
@@ -173,23 +182,6 @@ struct usbdev_ep_driver {
      */
     int (*ready)(usbdev_ep_t *ep, size_t len);
 };
-
-/**
- * activate pull up to indicate device connected
- */
-int usbdev_attach(usbdev_t *dev);
-
-/**
- * deactivate pull up to indicate device connected
- */
-int usbdev_detach(usbdev_t *dev);
-
-/**
- * Get an USB endpoint struct of the indicated type
- *
- * @returns         NULL if the endpoint type is not available.
- */
-usbdev_ep_t *usbdev_get_ep(usbdev_t *dev, usbdev_ep_type_t type, usbdev_dir_t dir);
 
 #ifdef __cplusplus
 }

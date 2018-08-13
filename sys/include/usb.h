@@ -13,76 +13,42 @@
 extern "c" {
 #endif
 
-#include <stdint.h>
+#include "usb/hdr.h"
 
-#define USB_TYPE_DESCRIPTOR_DEVICE          0x01
-#define USB_TYPE_DESCRIPTOR_CONFIGURATION   0x02
-#define USB_TYPE_DESCRIPTOR_STRING          0x03
-#define USB_TYPE_DESCRIPTOR_INTERFACE       0x04
+#ifndef USB_CONFIG_VID
+#define USB_CONFIG_VID          (0x1234)
+#endif
 
-typedef struct __attribute__((packed)) {
-    uint8_t length;
-    uint8_t type;
-    uint16_t bcd_usb;
-    uint8_t class;
-    uint8_t subclass;
-    uint8_t protocol;
-    uint8_t max_packet_size;
-    uint16_t vendor_id;
-    uint16_t product_id;
-    uint16_t bcd_device;
-    uint8_t manufacturer_idx;
-    uint8_t product_idx;
-    uint8_t serial_idx;
-    uint8_t num_configurations;
-} usb_descriptor_device_t;
+#ifndef USB_CONFIG_PID
+#define USB_CONFIG_PID          (0x5678)
+#endif
 
-typedef struct __attribute__((packed)) {
-    uint8_t length;
-    uint8_t type;
-    uint16_t total_length;
-    uint8_t num_interfaces;
-    uint8_t val;
-    uint8_t idx;
-    uint8_t attributes;
-    uint8_t max_power;
-} usb_descriptor_configuration_t;
+#ifndef USB_CONFIG_MANUF_STR
+#define USB_CONFIG_MANUF_STR   "RIOT-os.org"
+#endif
 
-typedef struct __attribute__((packed)) {
-    uint8_t length;
-    uint8_t type;
-    uint8_t interface_num;
-    uint8_t alternate_setting;
-    uint8_t num_endpoints;
-    uint8_t class;
-    uint8_t subclass;
-    uint8_t protocol;
-    uint8_t idx;
-} usb_descriptor_interface_t;
+#ifndef USB_CONFIG_PRODUCT_STR
+#define USB_CONFIG_PRODUCT_STR  "USB device"
+#endif
 
-typedef struct __attribute__((packed)) {
-    uint8_t length;
-    uint8_t type;
-    uint8_t address;
-    uint8_t attributes;
-    uint16_t max_packet_size;
-    uint8_t interval;
-} usb_descriptor_endpoint_t;
+#ifndef USB_CONFIG_PRODUCT_BCDVERSION
+#define USB_CONFIG_PRODUCT_BCDVERSION   "0x0100"
+#endif
 
+#ifndef USB_CONFIG_SELF_POWERED
+#define USB_CONFIG_SELF_POWERED   (0)
+#endif
 
-typedef struct __attribute__((packed)) {
-    uint8_t length;
-    uint8_t type;
-} usb_descriptor_string_t;
+#ifndef USB_CONFIG_DEFAULT_LANGID
+#define USB_CONFIG_DEFAULT_LANGID   0x0409
+#endif
 
-typedef struct __attribute__((packed)) {
-    uint8_t type;
-    uint8_t request;
-    uint16_t value;
-    uint16_t index;
-    uint16_t length;
-} usb_setup_t;
-
+/**
+ * @brief USB device max power draw in mA, between 0 and 500mA
+ */
+#ifndef USB_CONFIG_MAX_POWER
+#define USB_CONFIG_MAX_POWER   (100)
+#endif
 
 #ifdef __cplusplus
 }
@@ -90,4 +56,3 @@ typedef struct __attribute__((packed)) {
 
 #endif /* USB_H */
 /** @} */
-

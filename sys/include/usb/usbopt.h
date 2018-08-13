@@ -38,6 +38,7 @@ typedef enum {
     USBOPT_EP_BUF_ADDR,
     USBOPT_EP_BUF_SIZE,
     USBOPT_EP_ENABLE,
+    USBOPT_EP_STALL,
 } usbopt_ep_t;
 
 #ifdef __cplusplus
