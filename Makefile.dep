@@ -779,8 +779,12 @@ ifneq (,$(filter tlsf-malloc,$(USEMODULE)))
   USEPKG += tlsf
 endif
 
-ifneq (,$(filter usbman,$(USEMODULE)))
+ifneq (,$(filter plumbum,$(USEMODULE)))
   USEMODULE += usbdev
+endif
+
+ifneq (,$(filter usb_hid_keyboard,$(USEMODULE)))
+  USEMODULE += usb_hid
 endif
 
 ifneq (,$(filter uuid,$(USEMODULE)))

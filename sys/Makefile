@@ -136,9 +136,11 @@ endif
 ifneq (,$(filter rdcli_simple,$(USEMODULE)))
     DIRS += net/application_layer/rdcli_simple
 endif
-
-ifneq (,$(filter usbman,$(USEMODULE)))
-    DIRS += usb/usbman
+ifneq (,$(filter plumbum,$(USEMODULE)))
+    DIRS += usb/plumbum
+endif
+ifneq (,$(filter usb_hid,$(USEMODULE)))
+    DIRS += usb/hid
 endif
 
 DIRS += $(dir $(wildcard $(addsuffix /Makefile, $(USEMODULE))))

@@ -1,6 +1,6 @@
 DIRS = periph
 
-ifneq (,$(filter sam_usb,$(USEMODULE)))
+ifneq (,$(filter usbdev,$(USEMODULE)))
   DIRS += usb
 endif
 

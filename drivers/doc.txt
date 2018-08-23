@@ -49,3 +49,9 @@
  * @ingroup     drivers
  * @brief       Software emulated @ref drivers_periph for UART, SPI, etc
  */
+
+/**
+ * @defgroup    drivers_usbdev USB Device Drivers
+ * @ingroup     drivers
+ * @brief       Drivers for USB peripheral devices
+ */

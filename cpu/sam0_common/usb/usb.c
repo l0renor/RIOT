@@ -35,6 +35,7 @@ static UsbDeviceDescBank banks[16];
 static usbdev_ep_t endpoints[16];
 
 void usbdev_ep_init(usbdev_ep_t *ep);
+static usbdev_ep_t *usbdev_new_ep(usbdev_t *dev, usb_ep_type_t type, usb_ep_dir_t dir);
 int usbdev_ep_get(usbdev_ep_t *ep, usbopt_ep_t opt, void *value, size_t max_len);
 int usbdev_ep_set(usbdev_ep_t *ep, usbopt_ep_t opt, const void *value, size_t value_len);
 int usbdev_ep_ready(usbdev_ep_t *ep, size_t len);
@@ -48,12 +49,12 @@ const usbdev_ep_driver_t driver_ep = {
     .ready = usbdev_ep_ready,
 };
 
-static inline unsigned _get_ep_num(unsigned num, usbdev_dir_t dir)
+static inline unsigned _get_ep_num(unsigned num, usb_ep_dir_t dir)
 {
-    return 2*num + (dir == USBDEV_DIR_OUT ? 0 : 1);
+    return 2*num + (dir == USB_EP_DIR_OUT ? 0 : 1);
 }
 
-static inline usbdev_ep_t* _get_ep(unsigned num, usbdev_dir_t dir)
+static inline usbdev_ep_t* _get_ep(unsigned num, usb_ep_dir_t dir)
 {
     return &endpoints[_get_ep_num(num, dir)];
 }
@@ -71,29 +72,47 @@ static inline void _disable_irq(void)
 static void _enable_ep_irq(usbdev_ep_t *ep)
 {
     UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep->num];
-    if (ep->dir == USBDEV_DIR_OUT) {
-        ep_reg->EPINTENSET.reg = USB_DEVICE_EPINTENSET_TRCPT0 | USB_DEVICE_EPINTENSET_TRFAIL0;
+    if (ep->dir == USB_EP_DIR_OUT) {
+        ep_reg->EPINTENSET.reg = USB_DEVICE_EPINTENSET_TRCPT0
+                               | USB_DEVICE_EPINTENSET_TRFAIL0
+                               | USB_DEVICE_EPINTENSET_STALL0;
         if (ep->num == 0) {
             ep_reg->EPINTENSET.reg = USB_DEVICE_EPINTENSET_RXSTP;
         }
     }
     else {
-        ep_reg->EPINTENSET.reg = USB_DEVICE_EPINTENSET_TRCPT1 | USB_DEVICE_EPINTENSET_TRFAIL1;
+        ep_reg->EPINTENSET.reg = USB_DEVICE_EPINTENSET_TRCPT1 
+                               | USB_DEVICE_EPINTENSET_TRFAIL1
+                               | USB_DEVICE_EPINTENSET_STALL1;
     }
 }
 
 static void _disable_ep_irq(usbdev_ep_t *ep)
 {
     UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep->num];
-    if (ep->dir == USBDEV_DIR_OUT) {
-        ep_reg->EPINTENCLR.reg = USB_DEVICE_EPINTENCLR_TRCPT0 | USB_DEVICE_EPINTENCLR_TRFAIL0;
+    if (ep->dir == USB_EP_DIR_OUT) {
+        ep_reg->EPINTENCLR.reg = USB_DEVICE_EPINTENCLR_TRCPT0 | USB_DEVICE_EPINTENCLR_TRFAIL0 | USB_DEVICE_EPINTENCLR_STALL0;
         if (ep->num == 0) {
             ep_reg->EPINTENCLR.reg = USB_DEVICE_EPINTENCLR_RXSTP;
         }
     }
     else {
-        ep_reg->EPINTENCLR.reg = USB_DEVICE_EPINTENCLR_TRCPT1 | USB_DEVICE_EPINTENCLR_TRFAIL1;
+        ep_reg->EPINTENCLR.reg = USB_DEVICE_EPINTENCLR_TRCPT1 | USB_DEVICE_EPINTENCLR_TRFAIL1 | USB_DEVICE_EPINTENCLR_STALL1;
     }
+}
+
+static bool _ep_in_flags_set(UsbDeviceEndpoint *ep_reg)
+{
+    return ep_reg->EPINTFLAG.reg  & 
+           ep_reg->EPINTENSET.reg &
+           (USB_DEVICE_EPINTENSET_TRFAIL0 | USB_DEVICE_EPINTENSET_TRCPT0 | USB_DEVICE_EPINTENSET_RXSTP | USB_DEVICE_EPINTENSET_STALL0);
+}
+
+static bool _ep_out_flags_set(UsbDeviceEndpoint *ep_reg)
+{
+    return ep_reg->EPINTFLAG.reg &
+           ep_reg->EPINTENSET.reg &
+           (USB_DEVICE_EPINTENSET_TRFAIL1 | USB_DEVICE_EPINTENSET_TRCPT1 | USB_DEVICE_EPINTENSET_STALL1);
 }
 
 static bool usb_enable_syncing(void)
@@ -110,6 +129,35 @@ static bool usb_swrst_syncing(void)
         return true;
     }
     return false;
+}
+
+static usbdev_ep_t *usbdev_new_ep(usbdev_t *dev, usb_ep_type_t type, usb_ep_dir_t dir)
+{
+    (void)dev;
+    /* The IP supports all types for all endpoints */
+    (void)type;
+    usbdev_ep_t *res = NULL;
+    if (type == USB_EP_TYPE_CONTROL) {
+        res = _get_ep(0, dir);
+        res->num = 0;
+    }
+    else {
+        for (unsigned idx = 1; idx < 8; idx++) {
+            usbdev_ep_t *ep = _get_ep(idx, dir);
+            if (ep->type == USB_EP_TYPE_NONE) {
+                res = ep;
+                res->num = idx;
+                break;
+            }
+        }
+    }
+    if (res) {
+        res->type = type;
+        res->dir = dir;
+        res->cb = NULL;
+        res->driver = &driver_ep;
+    }
+    return res;
 }
 
 static inline void poweron(void)
@@ -188,12 +236,12 @@ void isr_usb(void)
     if (USB->DEVICE.EPINTSMRY.reg) {
         unsigned ep_num = bitarithm_lsb(USB->DEVICE.EPINTSMRY.reg);
         UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep_num];
-        if (ep_reg->EPINTFLAG.reg & ep_reg->EPINTENSET.reg & (USB_DEVICE_EPINTENSET_TRFAIL0 | USB_DEVICE_EPINTENSET_TRCPT0 | USB_DEVICE_EPINTENSET_RXSTP)) {
+        if (_ep_in_flags_set(ep_reg)) {
             usbdev_ep_t *ep = &endpoints[ep_num];
             _disable_ep_irq(ep);
             ep->cb(ep, USBDEV_EVENT_ESR);
         }
-        else if (ep_reg->EPINTFLAG.reg & ep_reg->EPINTENSET.reg &  (USB_DEVICE_EPINTENSET_TRFAIL1 | USB_DEVICE_EPINTENSET_TRCPT1) )
+        else if (_ep_out_flags_set(ep_reg))
         {
             usbdev_ep_t *ep = &endpoints[ep_num+1];
             _disable_ep_irq(ep);
@@ -219,32 +267,14 @@ int usbdev_get(usbdev_t *usbdev, usbopt_t opt, void *value, size_t max_len)
     }
 
     switch (opt) {
-        case USBOPT_EP0_IN:
-            {
-                assert(max_len == sizeof(usbdev_ep_t*));
-                usbdev_ep_t *ep = _get_ep(0, USBDEV_DIR_IN);
-                ep->dir = USBDEV_DIR_IN;
-                ep->num = 0;
-                ep->type = USBDEV_EP_TYPE_CONTROL;
-                ep->cb = NULL;
-                ep->driver = &driver_ep;
-                *(usbdev_ep_t**)value = ep;
-                res = sizeof(usbdev_ep_t*);
-            }
-            break;
-        case USBOPT_EP0_OUT:
-            {
-                assert(max_len == sizeof(usbdev_ep_t*));
-                usbdev_ep_t *ep = _get_ep(0, USBDEV_DIR_OUT);
-                ep->dir = USBDEV_DIR_OUT;
-                ep->num = 0;
-                ep->type = USBDEV_EP_TYPE_CONTROL;
-                ep->cb = NULL;
-                ep->driver = &driver_ep;
-                *(usbdev_ep_t**)value = ep;
-                res = sizeof(usbdev_ep_t*);
-            }
-            break;
+        case USBOPT_MAX_VERSION:
+            assert(max_len == sizeof(usb_speed_t));
+            *(usb_version_t*)value = USB_VERSION_20;
+            res = sizeof(usb_speed_t);
+        case USBOPT_MAX_SPEED:
+            assert(max_len == sizeof(usb_speed_t));
+            *(usb_speed_t*)value = USB_SPEED_FULL;
+            res = sizeof(usb_speed_t);
         default:
             break;
     }
@@ -293,7 +323,7 @@ int usbdev_set(usbdev_t *usbdev, usbopt_t opt, const void *value, size_t value_l
 static void _ep_disable(usbdev_ep_t *ep)
 {
     UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep->num];
-    if (ep->dir == USBDEV_DIR_OUT) {
+    if (ep->dir == USB_EP_DIR_OUT) {
         ep_reg->EPCFG.bit.EPTYPE0 = 0;
     }
     else {
@@ -306,20 +336,23 @@ static void _ep_enable(usbdev_ep_t *ep)
     UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep->num];
     uint8_t type = 0;
     switch (ep->type) {
-       case USBDEV_EP_TYPE_CONTROL:
+       case USB_EP_TYPE_CONTROL:
            type = 0x01;
            break;
-       case USBDEV_EP_TYPE_ISOCHRONOUS:
+       case USB_EP_TYPE_ISOCHRONOUS:
            type = 0x02;
            break;
-       case USBDEV_EP_TYPE_BULK:
+       case USB_EP_TYPE_BULK:
            type = 0x03;
            break;
-       case USBDEV_EP_TYPE_INTERRUPT:
+       case USB_EP_TYPE_INTERRUPT:
            type = 0x04;
            break;
+       case USB_EP_TYPE_NONE:
+           /* Should never happen */
+           assert(false);
     }
-    if (ep->dir == USBDEV_DIR_OUT) {
+    if (ep->dir == USB_EP_DIR_OUT) {
         ep_reg->EPCFG.bit.EPTYPE0 = type;
     }
     else {
@@ -350,6 +383,43 @@ void _ep_address(usbdev_ep_t *ep, char* buf)
 {
     UsbDeviceDescBank *bank = &banks[_get_ep_num(ep->num, ep->dir)];
     bank->ADDR.reg = (uint32_t)buf;
+}
+
+void _ep_set_stall(usbdev_ep_t *ep, usbopt_enable_t enable)
+{
+    UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep->num];
+    if (ep->dir == USB_EP_DIR_IN) {
+        if (enable) {
+            DEBUG("usb: enable stall for IN\n");
+            ep_reg->EPSTATUSSET.reg = USB_DEVICE_EPSTATUSSET_STALLRQ1;
+        }
+        else {
+            DEBUG("usb: disable stall for IN\n");
+            ep_reg->EPSTATUSCLR.reg = USB_DEVICE_EPSTATUSSET_STALLRQ1;
+        }
+    }
+    else {
+        if (enable) {
+            ep_reg->EPSTATUSSET.reg = USB_DEVICE_EPSTATUSSET_STALLRQ0;
+        }
+        else {
+            ep_reg->EPSTATUSCLR.reg = USB_DEVICE_EPSTATUSSET_STALLRQ0;
+        }
+    }
+}
+
+usbopt_enable_t _ep_get_stall(usbdev_ep_t *ep)
+{
+    usbopt_enable_t res;
+    UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep->num];
+    if (ep->dir == USB_EP_DIR_IN) {
+        res = ep_reg->EPSTATUSSET.bit.STALLRQ1 ? USBOPT_ENABLE : USBOPT_DISABLE;
+    }
+    else {
+        res = ep_reg->EPSTATUSSET.bit.STALLRQ0 ? USBOPT_ENABLE : USBOPT_DISABLE;
+    }
+    return res;
+
 }
 
 void _ep_size(usbdev_ep_t *ep, size_t size)
@@ -403,6 +473,10 @@ int usbdev_ep_get(usbdev_ep_t *ep, usbopt_ep_t opt, void *value, size_t max_len)
         case USBOPT_EP_ENABLE:
         case USBOPT_EP_BUF_ADDR:
             break;
+        case USBOPT_EP_STALL:
+            *(usbopt_enable_t*)value = _ep_get_stall(ep);
+            res = sizeof(usbopt_enable_t);
+            break;
         default:
             break;
     }
@@ -435,6 +509,10 @@ int usbdev_ep_set(usbdev_ep_t *ep, usbopt_ep_t opt, const void *value, size_t va
             assert(value_len == sizeof(size_t));
             _ep_size(ep, *((size_t*)value));
             break;
+        case USBOPT_EP_STALL:
+            assert(value_len == sizeof(usbopt_enable_t));
+            _ep_set_stall(ep, *(usbopt_enable_t*)value);
+            res = sizeof(usbopt_enable_t);
         default:
             break;
     }
@@ -443,9 +521,10 @@ int usbdev_ep_set(usbdev_ep_t *ep, usbopt_ep_t opt, const void *value, size_t va
 
 int usbdev_ep_ready(usbdev_ep_t *ep, size_t len)
 {
+    _ep_set_stall(ep, USBOPT_DISABLE);
     UsbDeviceDescBank *bank = &banks[_get_ep_num(ep->num, ep->dir)];
     UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep->num];
-    if (ep->dir == USBDEV_DIR_IN) {
+    if (ep->dir == USB_EP_DIR_IN) {
         bank->PCKSIZE.bit.BYTE_COUNT = len;
         ep_reg->EPSTATUSSET.reg = USB_DEVICE_EPSTATUSSET_BK1RDY;
     }
@@ -458,19 +537,24 @@ int usbdev_ep_ready(usbdev_ep_t *ep, size_t len)
 void usbdev_ep_esr(usbdev_ep_t *ep)
 {
     UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep->num];
-    DEBUG("st %s :%x - %x\n", ep->dir == USBDEV_DIR_OUT ? "out" : "in", ep_reg->EPSTATUS.reg, ep_reg->EPINTFLAG.reg);
+    DEBUG("st %s :%x - %x\n", ep->dir == USB_EP_DIR_OUT ? "out" : "in", ep_reg->EPSTATUS.reg, ep_reg->EPINTFLAG.reg);
     signed event = -1;
-    if (ep->dir == USBDEV_DIR_OUT) {
+    if (ep->dir == USB_EP_DIR_OUT) {
         if (ep_reg->EPINTFLAG.bit.TRCPT0) {
             ep_reg->EPINTFLAG.reg = USB_DEVICE_EPINTFLAG_TRCPT0;
             event = USBDEV_EVENT_TR_COMPLETE;
         }
         else if (ep_reg->EPINTFLAG.bit.RXSTP) {
-            event = USBDEV_EVENT_RX_SETUP;
+            event = USBDEV_EVENT_TR_COMPLETE;
             ep_reg->EPINTFLAG.reg = USB_DEVICE_EPINTFLAG_RXSTP;
         }
         else if (ep_reg->EPINTFLAG.bit.TRFAIL0) {
             ep_reg->EPINTFLAG.reg = USB_DEVICE_EPINTFLAG_TRFAIL0;
+            event = USBDEV_EVENT_TR_FAIL;
+        }
+        else if (ep_reg->EPINTFLAG.bit.STALL0) {
+            ep_reg->EPINTFLAG.reg = USB_DEVICE_EPINTFLAG_STALL0;
+            event = USBDEV_EVENT_TR_STALL;
         }
     }
     else {
@@ -480,6 +564,11 @@ void usbdev_ep_esr(usbdev_ep_t *ep)
         }
         else if (ep_reg->EPINTFLAG.bit.TRFAIL1) {
             ep_reg->EPINTFLAG.reg = USB_DEVICE_EPINTFLAG_TRFAIL1;
+            event = USBDEV_EVENT_TR_FAIL;
+        }
+        else if (ep_reg->EPINTFLAG.bit.STALL1) {
+            ep_reg->EPINTFLAG.reg = USB_DEVICE_EPINTFLAG_STALL1;
+            event = USBDEV_EVENT_TR_STALL;
         }
     }
     if (event >= 0) {
@@ -490,6 +579,7 @@ void usbdev_ep_esr(usbdev_ep_t *ep)
 
 const usbdev_driver_t driver = {
     .init = usbdev_init,
+    .new_ep = usbdev_new_ep,
     .get = usbdev_get,
     .set = usbdev_set,
     .esr = usbdev_esr,

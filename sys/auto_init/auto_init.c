@@ -88,8 +88,8 @@
 #include "net/asymcute.h"
 #endif
 
-#ifdef MODULE_USBMAN
-#include "usb/usbman.h"
+#ifdef MODULE_PLUMBUM
+#include "usb/plumbum.h"
 #endif
 
 #define ENABLE_DEBUG (0)
@@ -113,8 +113,8 @@ void auto_init(void)
     extern void profiling_init(void);
     profiling_init();
 #endif
-#ifdef MODULE_USBMAN
-    usbman_init();
+#ifdef MODULE_PLUMBUM
+    plumbum_init();
 #endif
 #ifdef MODULE_GNRC_PKTBUF
     DEBUG("Auto init gnrc_pktbuf module\n");
