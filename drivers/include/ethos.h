@@ -78,6 +78,7 @@ typedef struct {
     unsigned frametype;     /**< type of currently incoming frame */
     size_t last_framesize;  /**< size of last completed frame */
     mutex_t out_mutex;      /**< mutex used for locking concurrent sends */
+    bool accept_new;
 } ethos_t;
 
 /**
