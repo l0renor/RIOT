@@ -23,6 +23,7 @@
 #include "usb/usbdev.h"
 #include "usb/message.h"
 #include "usb/plumbum.h"
+#include "usb/plumbum/hdrs.h"
 #include "usb/hid/keyboard.h"
 
 #include "usb.h"
@@ -38,25 +39,26 @@
 #define PLUMBUM_PRIO                (THREAD_PRIORITY_MAIN - 6)
 #define PLUMBUM_TNAME               "plumbum"
 
+#define PLUMBUM_MAX_SIZE            8
+
 static plumbum_t _plumbum;
 extern const usbdev_driver_t driver;
 static sam0_common_usb_t usbdev;
 static char _stack[PLUMBUM_STACKSIZE];
-static uint8_t in_buf[1024];
-static uint8_t out_buf[1024];
 
 void _event_cb(usbdev_t *usbdev, usbdev_event_t event);
 void _event_ep0_cb(usbdev_ep_t *ep, usbdev_event_t event);
 void _event_ep_cb(usbdev_ep_t *ep, usbdev_event_t event);
 static void *_plumbum_thread(void *args);
 
-static size_t _cpy_str(uint8_t *buf, const char *str)
+static size_t plumbum_cpy_str(plumbum_t *plumbum, const char *str)
 {
     size_t len = 0;
     while(*str) {
-        *buf++ = *str++;
-        *buf++ = 0;
+        plumbum_put_char(plumbum, *str);
+        plumbum_put_char(plumbum, 0);
         len += 2;
+        str++;
     }
     return len;
 }
@@ -84,6 +86,51 @@ void plumbum_create(char *stack, int stacksize, char priority,
     assert(res > 0);
 }
 
+size_t plumbum_put_bytes(plumbum_t *plumbum, const uint8_t *buf, size_t len)
+{
+    plumbum_controlbuilder_t *builder = &plumbum->builder;
+    size_t end = builder->start + plumbum->in->len;
+    size_t byte_len = 0;    /* Length of the string to copy */
+
+    /* Calculate start offset of the supplied bytes */
+    size_t byte_offset = (builder->start > builder->cur) ? builder->start - builder->cur : 0;
+
+    /* Check for string before or beyond window */
+    if ((builder->cur >= end) || (byte_offset > len)) {
+        builder->cur += len;
+        return 0;
+    }
+    /* Check if string is over the end of the window */
+    if ((builder->cur + len) >= end) {
+        byte_len = end - (builder->cur + byte_offset);
+    }
+    else {
+        byte_len = len - byte_offset;
+    }
+    size_t start_offset = builder->cur - builder->start + byte_offset;
+    builder->cur += len;
+    builder->len += byte_len;
+    //printf("%u+%u/%u@%u\n",byte_len, byte_offset, len, start_offset);
+    memcpy(plumbum->in->buf + start_offset , buf + byte_offset, byte_len);
+    return byte_len;
+}
+
+size_t plumbum_put_char(plumbum_t *plumbum, char c)
+{
+    plumbum_controlbuilder_t *builder = &plumbum->builder;
+    size_t end = builder->start + plumbum->in->len;
+    /* Only copy the char if it is within the window */
+    if ((builder->start <=  builder->cur) && (builder->cur < end)) {
+        uint8_t *pos = plumbum->in->buf + builder->cur - builder->start;
+        *pos = c;
+        builder->cur++;
+        builder->len++;
+        return 1;
+    }
+    builder->cur++;
+    return 0;
+}
+
 uint16_t plumbum_add_string_descriptor(plumbum_t *plumbum, plumbum_string_t *desc, const char *str)
 {
     mutex_lock(&plumbum->lock);
@@ -92,7 +139,18 @@ uint16_t plumbum_add_string_descriptor(plumbum_t *plumbum, plumbum_string_t *des
     desc->idx = plumbum->str_idx++;
     desc->str = str;
     mutex_unlock(&plumbum->lock);
+    DEBUG("plumbum: Adding string descriptor number %u for: \"%s\"\n", desc->idx, str);
     return desc->idx;
+}
+
+void plumbum_ep0_ready(plumbum_t *plumbum)
+{
+    plumbum_controlbuilder_t *bldr = &plumbum->builder;
+    size_t len = bldr->len;
+    len = len < bldr->reqlen - bldr->start ? len : bldr->reqlen - bldr->start;
+    bldr->transfered += len;
+    //printf("rdy %u, tx: %u\n", len, bldr->transfered);
+    plumbum->in->driver->ready(plumbum->in, len);
 }
 
 plumbum_interface_t *_ep_to_iface(plumbum_t *plumbum, usbdev_ep_t *ep)
@@ -105,6 +163,20 @@ plumbum_interface_t *_ep_to_iface(plumbum_t *plumbum, usbdev_ep_t *ep)
         }
     }
     return NULL;
+}
+
+int plumbum_update_builder(plumbum_t *plumbum)
+{
+    plumbum_controlbuilder_t *bldr = &plumbum->builder;
+    size_t end = bldr->start + plumbum->in->len;
+    if (bldr->cur > end && bldr->start < bldr->reqlen && bldr->transfered < bldr->reqlen) {
+        bldr->start += plumbum->in->len;
+        bldr->cur = 0;
+        bldr->len = 0;
+        //printf("pkt cur %u, start: %u, end %u, max %u\n", bldr->cur, bldr->start, end, bldr->reqlen);
+        return 1;
+    }
+    return 0;
 }
 
 plumbum_string_t *_get_descriptor(plumbum_t *plumbum, uint16_t idx)
@@ -135,12 +207,11 @@ void plumbum_register_event_handler(plumbum_t *plumbum, plumbum_handler_t *handl
     handler->driver->init(plumbum, handler);
 }
 
-int plumbum_add_endpoint(plumbum_t *plumbum, plumbum_interface_t *iface, plumbum_endpoint_t* ep, usb_ep_type_t type, usb_ep_dir_t dir)
-
+int plumbum_add_endpoint(plumbum_t *plumbum, plumbum_interface_t *iface, plumbum_endpoint_t* ep, usb_ep_type_t type, usb_ep_dir_t dir, size_t len)
 {
     int res = -ENOMEM;
     mutex_lock(&plumbum->lock);
-    usbdev_ep_t* usbdev_ep = plumbum->dev->driver->new_ep(plumbum->dev, type, dir);
+    usbdev_ep_t* usbdev_ep = plumbum->dev->driver->new_ep(plumbum->dev, type, dir, len);
     if (ep) {
         ep->ep = usbdev_ep;
         ep->next = iface->ep;
@@ -155,48 +226,45 @@ int plumbum_add_endpoint(plumbum_t *plumbum, plumbum_interface_t *iface, plumbum
 static void _plumbum_config_ep0(plumbum_t *plumbum)
 {
     static const usbopt_enable_t enable = USBOPT_ENABLE;
-    size_t len = 64;
-    uint8_t *buf = in_buf;
-    plumbum->in->driver->set(plumbum->in, USBOPT_EP_BUF_ADDR, &buf, sizeof(buf));
-    plumbum->in->driver->set(plumbum->in, USBOPT_EP_BUF_SIZE, &len, sizeof(len));
     plumbum->in->driver->set(plumbum->in, USBOPT_EP_ENABLE, &enable, sizeof(usbopt_enable_t));
-    buf = out_buf;
-    plumbum->out->driver->set(plumbum->out, USBOPT_EP_BUF_ADDR, &buf, sizeof(buf));
-    plumbum->out->driver->set(plumbum->out, USBOPT_EP_BUF_SIZE, &len, sizeof(len));
     plumbum->out->driver->set(plumbum->out, USBOPT_EP_ENABLE, &enable, sizeof(usbopt_enable_t));
     plumbum->out->driver->ready(plumbum->out, 0);
 }
 
 void _req_status(plumbum_t *plumbum)
 {
-    memset(in_buf, 0, 2);
+    uint8_t status[2];
+    memset(status, 0, 2);
+    plumbum_put_bytes(plumbum, status, sizeof(status));
     plumbum->in->driver->ready(plumbum->in, 2);
 }
 
 void _req_str(plumbum_t *plumbum, uint16_t idx)
 {
     if (idx == 0) {
-        usb_descriptor_string_t *pkt = (usb_descriptor_string_t*)in_buf;
-        pkt->length = sizeof(uint16_t)+sizeof(usb_descriptor_string_t);
-        pkt->type = USB_TYPE_DESCRIPTOR_STRING;
+        usb_descriptor_string_t desc;
+        desc.type = USB_TYPE_DESCRIPTOR_STRING;
+        desc.length = sizeof(uint16_t)+sizeof(usb_descriptor_string_t);
+        plumbum_put_bytes(plumbum, (uint8_t*)&desc, sizeof(desc));
         /* Only one language ID supported */
         uint16_t us = USB_CONFIG_DEFAULT_LANGID;
-        memcpy(in_buf+sizeof(usb_descriptor_string_t),
-             &us, sizeof(uint16_t));
-        plumbum->in->driver->ready(plumbum->in, pkt->length);
+        plumbum_put_bytes(plumbum, (uint8_t*)&us, sizeof(uint16_t));
+        plumbum_ep0_ready(plumbum);
     }
     else {
+        usb_descriptor_string_t desc;
+        desc.type = USB_TYPE_DESCRIPTOR_STRING;
         mutex_lock(&plumbum->lock);
-        usb_descriptor_string_t *pkt = (usb_descriptor_string_t*)in_buf;
         plumbum_string_t *str = _get_descriptor(plumbum, idx);
         if (str) {
-            pkt->type = USB_TYPE_DESCRIPTOR_STRING;
-            pkt->length = sizeof(usb_descriptor_string_t);
-            pkt->length += _cpy_str(in_buf+sizeof(usb_descriptor_string_t), str->str);
-            plumbum->in->driver->ready(plumbum->in, pkt->length);
+            desc.length = sizeof(usb_descriptor_string_t);
+            desc.length += 2*strlen(str->str);
+            plumbum_put_bytes(plumbum, (uint8_t*)&desc, sizeof(desc));
+            plumbum_cpy_str(plumbum, str->str);
+            plumbum_ep0_ready(plumbum);
         }
         else {
-            plumbum->in->driver->ready(plumbum->in, 0);
+            plumbum_ep0_ready(plumbum);
         }
         mutex_unlock(&plumbum->lock);
     }
@@ -204,134 +272,52 @@ void _req_str(plumbum_t *plumbum, uint16_t idx)
 
 void _print_setup(usb_setup_t *pkt)
 {
-    printf("plumbum: setup packet type 0x%x. request: 0x%x, value: 0x%x\n", pkt->type, pkt->request, pkt->value);
+    printf("plumbum: setup t:0x%.2x r:0x%x, v:0x%x l:%u\n", pkt->type, pkt->request, pkt->value, pkt->length);
 }
 
 static void _req_dev(plumbum_t *plumbum)
 {
-    usb_descriptor_device_t *desc = (usb_descriptor_device_t*)in_buf;
-    memset(desc, 0, sizeof(usb_descriptor_device_t));
-    desc->length = sizeof(usb_descriptor_device_t);
-    desc->type = USB_TYPE_DESCRIPTOR_DEVICE;
-    desc->bcd_usb = 0x0110;
-    desc->max_packet_size = 64;
-    desc->vendor_id = USB_CONFIG_VID;
-    desc->product_id = USB_CONFIG_PID;
-    desc->manufacturer_idx = plumbum->manuf.idx;
-    desc->product_idx = plumbum->product.idx;
-    desc->num_configurations = 1;
-    plumbum->in->driver->ready(plumbum->in, sizeof(usb_descriptor_device_t));
+    usb_descriptor_device_t desc;
+    memset(&desc, 0, sizeof(usb_descriptor_device_t));
+    desc.length = sizeof(usb_descriptor_device_t);
+    desc.type = USB_TYPE_DESCRIPTOR_DEVICE;
+    desc.bcd_usb = 0x0110;
+    desc.max_packet_size = PLUMBUM_MAX_SIZE;
+    desc.vendor_id = USB_CONFIG_VID;
+    desc.product_id = USB_CONFIG_PID;
+    desc.manufacturer_idx = plumbum->manuf.idx;
+    desc.product_idx = plumbum->product.idx;
+    desc.num_configurations = 1;
+    plumbum_put_bytes(plumbum, (uint8_t*)&desc, sizeof(usb_descriptor_device_t));
+    plumbum_ep0_ready(plumbum);
 }
 
-static size_t _fmt_endpoints(plumbum_interface_t *iface, uint8_t *buf, size_t max_len)
-{
-    size_t len = 0;
-    (void)max_len;
-    for (plumbum_endpoint_t *ep = iface->ep;
-            ep; ep = ep->next) {
-        if (max_len < len + sizeof(usb_descriptor_endpoint_t)) {
-            break;
-        }
-        uint8_t *write_pos = buf + len;
-        usb_descriptor_endpoint_t *usb_ep = (usb_descriptor_endpoint_t*)write_pos;
-        memset(usb_ep, 0 , sizeof(usb_descriptor_endpoint_t));
-        usb_ep->length = sizeof(usb_descriptor_endpoint_t);
-        usb_ep->type = USB_TYPE_DESCRIPTOR_ENDPOINT;
-        usb_ep->address = ep->ep->num;
-        if (ep->ep->dir == USB_EP_DIR_OUT) {
-            usb_ep->address |= 0x80;
-        }
-        usb_ep->attributes = 3;
-        usb_ep->max_packet_size = 64;
-        usb_ep->interval = 20;
-        usb_ep->address = 0x81;
-        len += usb_ep->length;
-    }
-    return len;
-}
-
-static size_t _fmt_additional(plumbum_t *plumbum, plumbum_hdr_gen_t *hdr, uint8_t *buf, size_t max_len)
-{
-    size_t len = 0;
-    for (; hdr; hdr = hdr->next) {
-        len += hdr->gen_hdr(plumbum, hdr->arg, buf + len, max_len - len);
-    }
-    return len;
-}
-
-static size_t _fmt_ifaces(plumbum_t *plumbum, uint8_t *buf, size_t max_len)
-{
-    size_t len = 0;
-    for (plumbum_interface_t *iface = plumbum->iface; 
-            iface;
-            iface = iface->next) {
-        if (max_len < len + sizeof(usb_descriptor_interface_t)) {
-            break;
-        }
-        uint8_t *write_pos = buf + len;
-        usb_descriptor_interface_t *usb_iface = (usb_descriptor_interface_t*)write_pos;
-        memset(usb_iface, 0 , sizeof(usb_descriptor_interface_t));
-        usb_iface->length = sizeof(usb_descriptor_interface_t);
-        usb_iface->type = USB_TYPE_DESCRIPTOR_INTERFACE;
-        usb_iface->interface_num = iface->idx;
-        usb_iface->alternate_setting = 0;
-        usb_iface->class = iface->class;
-        usb_iface->subclass = iface->subclass;
-        usb_iface->protocol = iface->protocol;
-        usb_iface->num_endpoints = 1;
-        if (iface->descr) {
-            usb_iface->idx = iface->descr->idx;
-        }
-        len += sizeof(usb_descriptor_interface_t);
-        len += _fmt_additional(plumbum, iface->hdr_gen, write_pos + len, max_len);
-        len += _fmt_endpoints(iface, write_pos + len, max_len);
-    }
-    return len;
-}
-
-static size_t _config_size(plumbum_t *plumbum)
-{
-    size_t len = sizeof(usb_descriptor_configuration_t);
-    for (plumbum_interface_t *iface = plumbum->iface; 
-            iface;
-            iface = iface->next) {
-        len += sizeof(usb_descriptor_interface_t);
-        for (plumbum_hdr_gen_t *hdr = iface->hdr_gen; hdr; hdr = hdr->next) {
-            len += hdr->hdr_len(plumbum, hdr->arg);
-        }
-        for (plumbum_endpoint_t *ep = iface->ep;
-                ep; ep = ep->next) {
-            len += sizeof(usb_descriptor_endpoint_t);
-        }
-    }
-    return len;
-}
-
-static void _req_config(plumbum_t *plumbum, uint8_t *buf, size_t max_len)
+static void _req_config(plumbum_t *plumbum, size_t max_len)
 {
     size_t len = 0;
     mutex_lock(&plumbum->lock);
-    usb_descriptor_configuration_t *conf = (usb_descriptor_configuration_t*)buf;
-    memset(conf, 0 ,sizeof(usb_descriptor_configuration_t));
-    conf->length = sizeof(usb_descriptor_configuration_t);
-    conf->type = USB_TYPE_DESCRIPTOR_CONFIGURATION;
-    conf->total_length = sizeof(usb_descriptor_configuration_t);
-    conf->val = 1;
-    conf->attributes = USB_CONF_ATTR_RESERVED;
+    usb_descriptor_configuration_t conf;
+    memset(&conf, 0 ,sizeof(usb_descriptor_configuration_t));
+    conf.length = sizeof(usb_descriptor_configuration_t);
+    conf.type = USB_TYPE_DESCRIPTOR_CONFIGURATION;
+    conf.total_length = sizeof(usb_descriptor_configuration_t);
+    conf.val = 1;
+    conf.attributes = USB_CONF_ATTR_RESERVED;
     if (USB_CONFIG_SELF_POWERED) {
-        conf->attributes |= USB_CONF_ATTR_SELF_POWERED;
+        conf.attributes |= USB_CONF_ATTR_SELF_POWERED;
     }
     /* Todo: upper bound */
-    conf->max_power = USB_CONFIG_MAX_POWER/2;
-    conf->num_interfaces = 1;
+    conf.max_power = USB_CONFIG_MAX_POWER/2;
+    conf.num_interfaces = 1;
     len += sizeof(usb_descriptor_configuration_t);
     /* TODO: add buffer upper bound */
     (void)max_len;
-    len += _fmt_ifaces(plumbum, buf + len, max_len - len );
-    conf->total_length = _config_size(plumbum);
-    conf->idx = plumbum->config.idx;
+    conf.total_length = plumbum_hdrs_config_size(plumbum);
+    conf.idx = plumbum->config.idx;
+    plumbum_put_bytes(plumbum, (uint8_t*)&conf, sizeof(conf));
+    len += plumbum_hdrs_fmt_ifaces(plumbum);
     mutex_unlock(&plumbum->lock);
-    plumbum->in->driver->ready(plumbum->in, len);
+    plumbum_ep0_ready(plumbum);
 }
 
 static void _req_dev_qualifier(plumbum_t *plumbum)
@@ -351,13 +337,12 @@ static void _req_descriptor(plumbum_t *plumbum, usb_setup_t *pkt)
 {
     uint8_t type = pkt->value >> 8;
     uint8_t idx = (uint8_t)pkt->value;
-    //_print_setup(pkt);
     switch (type) {
         case 0x1:
             _req_dev(plumbum);
             break;
         case 0x2:
-            _req_config(plumbum, in_buf, pkt->length);
+            _req_config(plumbum, pkt->length);
             break;
         case 0x03:
             _req_str(plumbum, idx);
@@ -412,10 +397,16 @@ void recv_interface_setup(plumbum_t *plumbum, usbdev_ep_t *ep, usb_setup_t *pkt)
     mutex_unlock(&plumbum->lock);
 }
 
+
+static inline size_t plumbum_pkt_maxlen(plumbum_t *plumbum, usb_setup_t *pkt)
+{
+    return pkt->length > plumbum->in->len ? plumbum->in->len : pkt->length;
+}
+
 void recv_setup(plumbum_t *plumbum, usbdev_ep_t *ep)
 {
     (void)ep;
-    usb_setup_t *pkt = (usb_setup_t*)out_buf;
+    usb_setup_t *pkt = &plumbum->setup;
     if (pkt->type & 0x80) {
         plumbum->setup_state = PLUMBUM_SETUPRQ_INDATA;
     }
@@ -439,7 +430,6 @@ void recv_setup(plumbum_t *plumbum, usbdev_ep_t *ep)
         default:
             DEBUG("plumbum: Unhandled setup request\n");
     }
-    plumbum->out->driver->ready(plumbum->out, 0);
 }
 
 static void *_plumbum_thread(void *args)
@@ -452,7 +442,6 @@ static void *_plumbum_thread(void *args)
     plumbum->strings = NULL;
     plumbum->iface = NULL;
     plumbum->str_idx = 1;
-    plumbum->buf_in = in_buf;
     plumbum->setup_state = PLUMBUM_SETUPRQ_READY;
     mutex_init(&plumbum->lock);
     msg_t msg, msg_queue[_PLUMBUM_MSG_QUEUE_SIZE];
@@ -465,8 +454,8 @@ static void *_plumbum_thread(void *args)
     dev->driver->init(dev);
     dev->context = plumbum;
 
-    plumbum->in = plumbum->dev->driver->new_ep(plumbum->dev, USB_EP_TYPE_CONTROL, USB_EP_DIR_IN);
-    plumbum->out = plumbum->dev->driver->new_ep(plumbum->dev, USB_EP_TYPE_CONTROL, USB_EP_DIR_OUT);
+    plumbum->in = plumbum->dev->driver->new_ep(plumbum->dev, USB_EP_TYPE_CONTROL, USB_EP_DIR_IN, PLUMBUM_MAX_SIZE);
+    plumbum->out = plumbum->dev->driver->new_ep(plumbum->dev, USB_EP_TYPE_CONTROL, USB_EP_DIR_OUT, PLUMBUM_MAX_SIZE);
     plumbum->in->cb = _event_ep0_cb;
     plumbum->out->cb = _event_ep0_cb;
     plumbum->in->context = plumbum;
@@ -475,9 +464,9 @@ static void *_plumbum_thread(void *args)
     plumbum->in->driver->init(plumbum->in);
     plumbum->out->driver->init(plumbum->out);
     _plumbum_config_ep0(plumbum);
-    plumbum_add_string_descriptor(plumbum, &plumbum->manuf, USB_CONFIG_MANUF_STR);
-    plumbum_add_string_descriptor(plumbum, &plumbum->product, USB_CONFIG_PRODUCT_STR);
     plumbum_add_string_descriptor(plumbum, &plumbum->config, USB_CONFIG_CONFIGURATION_STR);
+    plumbum_add_string_descriptor(plumbum, &plumbum->product, USB_CONFIG_PRODUCT_STR);
+    plumbum_add_string_descriptor(plumbum, &plumbum->manuf, USB_CONFIG_MANUF_STR);
 
     plumbum->state = PLUMBUM_STATE_DISCONNECT;
     mutex_unlock(&plumbum->lock);
@@ -498,7 +487,7 @@ static void *_plumbum_thread(void *args)
                     usbdev_ep_t *ep = (usbdev_ep_t*)msg.content.ptr;
                     ep->driver->esr(ep);
                 }
-                break;
+              break;
             default:
                 DEBUG("plumbum: unhandled event\n");
                 break;
@@ -529,7 +518,9 @@ void _event_cb(usbdev_t *usbdev, usbdev_event_t event)
                 plumbum->dev->driver->set(plumbum->dev, USBOPT_ADDRESS, &plumbum->addr, sizeof(uint8_t));
                 plumbum_endpoint_t *ep = plumbum->iface->ep;
                 static const usbopt_enable_t enable = USBOPT_ENABLE;
+                printf("Enabling %u\n", ep->ep->num);
                 ep->ep->driver->set(ep->ep, USBOPT_EP_ENABLE, &enable, sizeof(usbopt_enable_t));
+                puts("Reset");
                 }
                 break;
             default:
@@ -560,36 +551,44 @@ void _event_ep0_cb(usbdev_ep_t *ep, usbdev_event_t event)
                         plumbum->dev->driver->set(plumbum->dev, USBOPT_ADDRESS, &plumbum->addr, sizeof(uint8_t));
                         /* Address configured */
                         plumbum->state = PLUMBUM_STATE_ADDR;
+                        DEBUG("Setting addres %u\n", plumbum->addr);
                     }
-                    DEBUG("plumbum_state: inack->ready\n");
                     plumbum->setup_state = PLUMBUM_SETUPRQ_READY;
                 }
                 else if (plumbum->setup_state == PLUMBUM_SETUPRQ_OUTACK && ep->dir == USB_EP_DIR_OUT) {
-                    DEBUG("plumbum_state: outack->ready\n");
+                    memset(&plumbum->builder, 0, sizeof(plumbum_controlbuilder_t));
+                    static const usbopt_enable_t disable = USBOPT_DISABLE;
+                    plumbum->in->driver->set(plumbum->in, USBOPT_EP_READY, &disable, sizeof(usbopt_enable_t));
                     plumbum->setup_state = PLUMBUM_SETUPRQ_READY;
                 }
                 else if (plumbum->setup_state == PLUMBUM_SETUPRQ_INDATA && ep->dir == USB_EP_DIR_IN) {
-                    /* Ready out ZLP */
-                    DEBUG("plumbum_state: indata->outack\n");
-                    plumbum->setup_state = PLUMBUM_SETUPRQ_OUTACK;
-                    plumbum->out->driver->ready(plumbum->out, 0);
+                    if (plumbum_update_builder(plumbum)) {
+                        recv_setup(plumbum, ep);
+                        plumbum->setup_state = PLUMBUM_SETUPRQ_INDATA;
+                    }
+                    else {
+                        /* Ready out ZLP */
+                        plumbum->setup_state = PLUMBUM_SETUPRQ_OUTACK;
+                    }
                 }
                 else if (plumbum->setup_state == PLUMBUM_SETUPRQ_OUTDATA && ep->dir == USB_EP_DIR_OUT) {
                     /* Ready in ZLP */
-                    DEBUG("plumbum_state: outdata->inack\n");
                     plumbum->setup_state = PLUMBUM_SETUPRQ_INACK;
                     plumbum->in->driver->ready(plumbum->in, 0);
                 }
                 else if (ep->dir == USB_EP_DIR_OUT) {
+                    memset(&plumbum->builder, 0, sizeof(plumbum_controlbuilder_t));
+                    memcpy(&plumbum->setup, plumbum->out->buf, sizeof(usb_setup_t));
+                    plumbum->builder.reqlen = plumbum->setup.length;
+                    plumbum->out->driver->ready(plumbum->out, 0);
                     recv_setup(plumbum, ep);
+                    //_print_setup(&plumbum->setup);
                 }
                 break;
             case USBDEV_EVENT_TR_FAIL:
                 if (ep->dir == USB_EP_DIR_OUT) {
-                    DEBUG("plumbum_ep: out fail");
                 }
                 else {
-                    DEBUG("plumbum_ep: in fail");
                 }
                 break;
             case USBDEV_EVENT_TR_STALL:
@@ -607,6 +606,7 @@ void _event_ep0_cb(usbdev_ep_t *ep, usbdev_event_t event)
 /* USB generic endpoint callback */
 void _event_ep_cb(usbdev_ep_t *ep, usbdev_event_t event)
 {
+    puts("EP event");
     plumbum_t *plumbum = (plumbum_t *)ep->context;
     if (event == USBDEV_EVENT_ESR) {
         msg_t msg = { .type = PLUMBUM_MSG_TYPE_EP_EVENT,
@@ -622,6 +622,7 @@ void _event_ep_cb(usbdev_ep_t *ep, usbdev_event_t event)
                 {
                     plumbum_interface_t *iface = _ep_to_iface(plumbum, ep);
                     if (iface) {
+                        puts("Calling event handler");
                         iface->handler->driver->event_handler(plumbum, iface->handler, PLUMBUM_MSG_TYPE_TR_COMPLETE, ep);
                     }
                     if (ep->dir == USB_EP_DIR_OUT)

@@ -9,7 +9,7 @@
 /**
  * @defgroup    usb_plumbum Plumbum USB device and endpoint manager
  * @ingroup     usb
- * @brief       Plumbum, a simple USB device management interface   
+ * @brief       Plumbum, a simple USB device management interface
  *
  * @{
  *
@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include "usb/usbdev.h"
 #include "usb.h"
+#include "usb/message.h"
 
 #include "kernel_types.h"
 #include "msg.h"
@@ -62,6 +63,7 @@ typedef struct plumbum_interface plumbum_interface_t;
 typedef struct plumbum_endpoint plumbum_endpoint_t;
 typedef struct plumbum_handler plumbum_handler_t;
 
+
 struct plumbum_string {
     struct plumbum_string *next;
     uint16_t idx;
@@ -88,14 +90,22 @@ struct plumbum_interface {
 };
 
 typedef struct {
+    size_t start;
+    size_t cur;
+    size_t len;
+    size_t transfered;
+    size_t reqlen;                  /**< Maximum length of request */
+} plumbum_controlbuilder_t;
+
+typedef struct {
     plumbum_string_t manuf;         /**< Manufacturer string                */
     plumbum_string_t product;       /**< Product string                     */
     plumbum_string_t config;        /**< Configuration string               */
+    plumbum_controlbuilder_t builder;
     usbdev_ep_t *out;               /**< EP0 out endpoint                   */
     usbdev_ep_t *in;                /**< EP0 in endpoint                    */
-    uint8_t *buf_in;                /**< TODO: removeme */
-    uint8_t *buf_out;
     usbdev_t *dev;                  /**< usb phy device of the usb manager  */
+    usb_setup_t setup;              /**< Last received setup packet         */
     plumbum_hdr_gen_t *hdr_gen;
     plumbum_string_t *strings;      /**< List of descriptor strings         */
     plumbum_interface_t *iface;     /**< List of USB interfaces             */
@@ -104,13 +114,13 @@ typedef struct {
     uint16_t addr;                  /**< Address of the USB port            */
     plumbum_state_t state;          /**< Current state                      */
     plumbum_setuprq_state_t setup_state; /**< Setup request state machine   */
-    uint16_t str_idx;               
+    uint16_t str_idx;
     mutex_t lock;                   /**< Mutex for modifying the object     */
 } plumbum_t;
 
 struct plumbum_hdr_gen {
     struct plumbum_hdr_gen *next;
-    size_t (*gen_hdr)(plumbum_t *plumbum, void *arg, uint8_t *buf, size_t max_len);
+    size_t (*gen_hdr)(plumbum_t *plumbum, void *arg);
     size_t (*hdr_len)(plumbum_t *plumbum, void *arg);
     void *arg;
 };
@@ -128,13 +138,16 @@ struct plumbum_handler {
 
 
 uint16_t plumbum_add_interface(plumbum_t *plumbum, plumbum_interface_t *iface);
-int plumbum_add_endpoint(plumbum_t *plumbum, plumbum_interface_t *iface, plumbum_endpoint_t* ep, usb_ep_type_t type, usb_ep_dir_t dir);
+int plumbum_add_endpoint(plumbum_t *plumbum, plumbum_interface_t *iface, plumbum_endpoint_t* ep, usb_ep_type_t type, usb_ep_dir_t dir, size_t len);
 plumbum_t *plumbum_get_ctx(void);
 void plumbum_register_event_handler(plumbum_t *plumbum, plumbum_handler_t *handler);
 void plumbum_init(void);
 void plumbum_create(char *stack, int stacksize, char priority,
                    const char *name, usbdev_t *usbdev);
 
+size_t plumbum_put_bytes(plumbum_t *plumbum, const uint8_t *buf, size_t len);
+size_t plumbum_put_char(plumbum_t *plumbum, char c);
+void plumbum_ep0_ready(plumbum_t *plumbum);
 
 #ifdef __cplusplus
 }

@@ -43,31 +43,58 @@
 //void keyboard_create(char *stack, int stacksize, char priority,
 //                   const char *name);
 
-static uint8_t buf[64];
+static uint8_t buf[8];
+static bool idle = false;
 
 static int event_handler(plumbum_t *plumbum, plumbum_handler_t *handler, uint16_t event, void *arg);
 static int _init(plumbum_t *plumbum, plumbum_handler_t *handler);
 
 static const uint8_t report_descriptor[] = {
-0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)
+0x05, 0x0C,        // Usage Page (Generic Desktop Ctrls)
 0x09, 0x01,        // Usage (Consumer control)
 0xA1, 0x01,        // Collection (Application)
 0x05, 0x0C,        //   Usage Page (Consumer devices)
 0x75, 0x01,        //   Report Size (1)
-0x95, 0x07,        //   Report Count (7)
+0x95, 0x08,        //   Report Count (8)
 0x15, 0x00,        //   Logical Minimum (0)
 0x25, 0x01,        //   Logical Maximum (1)
-0x09, 0xB5,        //   Usage (Scan Next Track) */ 
-0x09, 0xB6,        //   Usage (Scan Previous Track) */ 
-0x09, 0xB7,        //   Usage (Stop) */ 
-0x09, 0xCD,        //   Usage (Play / Pause) */ 
-0x09, 0xE2,        //   Usage (Mute) */ 
-0x09, 0xE9,        //   Usage (Volume Up) */ 
-0x09, 0xEA,        //   Usage (Volume Down) */ 
+0x09, 0xB5,        //   Usage (Scan Next Track) */
+0x09, 0xB6,        //   Usage (Scan Previous Track) */
+0x09, 0xB7,        //   Usage (Stop) */
+0x09, 0xCD,        //   Usage (Play / Pause) */
+0x09, 0xE2,        //   Usage (Mute) */
+0x09, 0xE9,        //   Usage (Volume Up) */
+0x09, 0xEA,        //   Usage (Volume Down) */
+0x09, 0xB9,        //   Usage (Random play) */
 0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
 0xC0
 };
 
+//static const uint8_t report_descriptor[] = {
+//    0x05, 0x01,
+//    0x09, 0x06,
+//    0xA1, 0x01,
+//    0x05, 0x07,
+//    0x19, 0xE0,
+//    0x29, 0xE7,
+//    0x15, 0x00,
+//    0x25, 0x01,
+//    0x75, 0x01,
+//    0x95, 0x08,
+//    0x81, 0x02,
+//    0x95, 0x01,
+//    0x75, 0x08,
+//    0x81, 0x01,
+//    0x95, 0x06,
+//    0x75, 0x08,
+//    0x15, 0x00,
+//    0x25, 0xbe,
+//    0x05, 0x07,
+//    0x19, 0x00,
+//    0x29, 0xbe,
+//    0x81, 0x00,
+//    0xC0
+//};
 
 void _gpio_cb(void *arg)
 {
@@ -75,15 +102,15 @@ void _gpio_cb(void *arg)
     hid->prev_state = hid->state;
     hid->state = gpio_read(BTN0_PIN);
     if (hid->state != hid->prev_state) {
+        memset(hid->ep.ep->buf, 0, 1);
         if (hid->state) {
-            memset(buf, 0 , sizeof(buf));
+            hid->ep.ep->buf[0] = 0x00;
         }
         else {
-            memset(buf, 0 , sizeof(buf));
-            buf[0] = 0x01;
+            hid->ep.ep->buf[0] = 0x08;
         }
+        hid->ep.ep->driver->ready(hid->ep.ep, 1);
     }
-    hid->ep.ep->driver->ready(hid->ep.ep, 1);
 }
 
 const plumbum_handler_driver_t hid_driver = {
@@ -91,20 +118,18 @@ const plumbum_handler_driver_t hid_driver = {
     .event_handler = event_handler,
 };
 
-static size_t _gen_hid_descriptor(plumbum_t *plumbum, void *arg, uint8_t *buf, size_t max_len)
+static size_t _gen_hid_descriptor(plumbum_t *plumbum, void *arg)
 {
-    (void)plumbum;
     (void)arg;
-    if (max_len >= sizeof(usb_descriptor_hid_t)) {
-        usb_descriptor_hid_t*hid = (usb_descriptor_hid_t*)buf;
-        hid->length = sizeof(usb_descriptor_hid_t);
-        hid->bcd_hid = 0x0110;
-        hid->type = USB_TYPE_DESCRIPTOR_HID; 
-        hid->country_code = USB_HID_COUNTRYCODE_NONE;
-        hid->num_descriptors = 1;
-        hid->report_type = USB_HID_DESCRIPTOR_TYPE_REPORT;
-        hid->report_length = sizeof(report_descriptor);
-    }
+    usb_descriptor_hid_t hid;
+    hid.length = sizeof(usb_descriptor_hid_t);
+    hid.bcd_hid = 0x0110;
+    hid.type = USB_TYPE_DESCRIPTOR_HID;
+    hid.country_code = USB_HID_COUNTRYCODE_NONE;
+    hid.num_descriptors = 1;
+    hid.report_type = USB_HID_DESCRIPTOR_TYPE_REPORT;
+    hid.report_length = sizeof(report_descriptor);
+    plumbum_put_bytes(plumbum, (uint8_t*)&hid, sizeof(hid));
     return sizeof(usb_descriptor_hid_t);
 }
 
@@ -151,9 +176,9 @@ static int _init(plumbum_t *plumbum, plumbum_handler_t *handler)
     hid->iface.protocol = USB_HID_PROTOCOL_NONE;
     hid->iface.hdr_gen = &hid->hid_hdr;
     hid->iface.handler = handler;
-    
+
     plumbum_add_interface(plumbum, &hid->iface);
-    if (plumbum_add_endpoint(plumbum, &hid->iface, &hid->ep, USB_EP_TYPE_INTERRUPT, USB_EP_DIR_IN) < 0)
+    if (plumbum_add_endpoint(plumbum, &hid->iface, &hid->ep, USB_EP_TYPE_INTERRUPT, USB_EP_DIR_IN, 8) < 0)
     {
         DEBUG("hid_keyboard: error getting interface\n");
         return -1;
@@ -167,7 +192,7 @@ static int _init(plumbum_t *plumbum, plumbum_handler_t *handler)
     hid->ep.ep->driver->set(hid->ep.ep, USBOPT_EP_ENABLE, &enable, sizeof(usbopt_enable_t));
 
     memset(buf, 0, sizeof(buf));
-    gpio_init_int(BTN0_PIN, BTN0_MODE, GPIO_BOTH, _gpio_cb, hid); 
+    gpio_init_int(BTN0_PIN, BTN0_MODE, GPIO_BOTH, _gpio_cb, hid);
 
     return 0;
 }
@@ -175,8 +200,8 @@ static int _init(plumbum_t *plumbum, plumbum_handler_t *handler)
 static int _handle_hid_report(plumbum_t *plumbum, usb_setup_t *pkt)
 {
     (void)pkt;
-    memcpy(plumbum->buf_in, report_descriptor, sizeof(report_descriptor));
-    plumbum->in->driver->ready(plumbum->in, sizeof(report_descriptor));
+    plumbum_put_bytes(plumbum, report_descriptor, sizeof(report_descriptor));
+    plumbum_ep0_ready(plumbum);
     return 0;
 }
 
@@ -188,7 +213,14 @@ static int _handle_setup(plumbum_t *plumbum, plumbum_handler_t *handler, usb_set
             return _handle_hid_report(plumbum, pkt);
         case USB_SETUP_REQUEST_TYPE_IDLE:
             puts("setidle");
+            idle = true;
             //plumbum->in->driver->ready(plumbum->in, 0);
+            return 0;
+        case USB_SETUP_REQUEST_TYPE_GET_REPORT:
+            puts("report request");
+            static const uint8_t state = 0;
+            plumbum_put_bytes(plumbum, &state, sizeof(state));
+            plumbum_ep0_ready(plumbum);
             return 0;
         default:
             return -1;
@@ -197,9 +229,10 @@ static int _handle_setup(plumbum_t *plumbum, plumbum_handler_t *handler, usb_set
 
 static int _handle_tr_complete(plumbum_t *plumbum, plumbum_handler_t *handler, plumbum_endpoint_t *ep)
 {
-    (void)plumbum;
-    (void)handler;
     (void)ep;
+    (void)plumbum;
+    plumbum_hid_device_t *hid = (plumbum_hid_device_t*)handler;
+    (void)hid;
     return 0;
 }
 
@@ -212,10 +245,9 @@ static int event_handler(plumbum_t *plumbum, plumbum_handler_t *handler, uint16_
             //case PLUMBUM_MSG_EP_EVENT:
             case PLUMBUM_MSG_TYPE_SETUP_RQ:
                 return _handle_setup(plumbum, handler, (usb_setup_t*)arg);
-
             case PLUMBUM_MSG_TYPE_TR_COMPLETE:
+                puts("complete");
                 return _handle_tr_complete(plumbum, handler, arg);
-
         default:
             return -1;
             break;

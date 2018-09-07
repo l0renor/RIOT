@@ -42,14 +42,14 @@ extern "c" {
  * @brief USB peripheral manufacturer string
  */
 #ifndef USB_CONFIG_MANUF_STR
-#define USB_CONFIG_MANUF_STR   "RIOT-os.org"
+#define USB_CONFIG_MANUF_STR   "RIOT-os.org "
 #endif
 
 /**
  * @brief USB peripheral product string
  */
 #ifndef USB_CONFIG_PRODUCT_STR
-#define USB_CONFIG_PRODUCT_STR  "USB device"
+#define USB_CONFIG_PRODUCT_STR  "This is the USB device you're looking for"
 #endif
 
 /**

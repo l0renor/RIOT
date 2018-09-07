@@ -40,6 +40,7 @@ extern "c" {
 
 #define USB_HID_KEYBOARD_NUM_KEYS           6
 
+#define USB_SETUP_REQUEST_TYPE_GET_REPORT   0x01
 #define USB_SETUP_REQUEST_TYPE_HID_REPORT   0x22
 #define USB_SETUP_REQUEST_TYPE_IDLE         0x0a
 
