@@ -83,6 +83,7 @@ typedef enum {
      * @brief   (usbopt_enable_t) Enable or disable stall replies for endpoint
      */
     USBOPT_EP_STALL,
+    USBOPT_EP_READY,
     /* expand list if required */
 } usbopt_ep_t;
 

@@ -83,8 +83,8 @@ typedef enum {
     /**
      * @brief Driver needs it's ISR handled
      */
-    USBDEV_EVENT_ESR, 
-    
+    USBDEV_EVENT_ESR,
+
     /**
      * @brief Line reset occured
      *
@@ -96,7 +96,7 @@ typedef enum {
      *  - Endpoint configuration, including stall settings
      */
     USBDEV_EVENT_RESET,
- 
+
     /**
      * @brief Transaction completed event.
      *
@@ -154,12 +154,14 @@ typedef void (*usbdev_ep_event_cb_t)(usbdev_ep_t *ep, usbdev_event_t event);
  */
 struct usbdev_ep {
     const struct usbdev_ep_driver *driver;  /**< Endpoint driver struct     */
+    void *context;                          /**< Ptr to the thread context  */
+    uint8_t *buf;                           /**< Ptr to the data buffer     */
+    size_t len;                             /**< Size of the data buffer    */
     usbdev_ep_event_cb_t cb;                /**< Endpoint event callback for
                                               *  upper layer                */
-    usb_ep_dir_t dir;                       /**< Endpoint direction         */ 
+    usb_ep_dir_t dir;                       /**< Endpoint direction         */
     usb_ep_type_t type;                     /**< Endpoint type              */
     uint8_t num;                            /**< Endpoint number            */
-    void *context;                          /**< Ptr to the thread context  */
 };
 
 typedef struct usbdev_driver {
@@ -174,11 +176,11 @@ typedef struct usbdev_driver {
      * @param[in]   dev     USB device descriptor
      */
     void (*init)(usbdev_t *usbdev);
-    
+
     /**
      * @brief Retrieve an USB endpoint of the specified type
      *
-     * requesting an endpoint of @ref USB_EP_TYPE_CONTROL must always return 
+     * requesting an endpoint of @ref USB_EP_TYPE_CONTROL must always return
      * endpoint 0 of the specified direction
      *
      * @pre `(dev != NULL)`
@@ -186,11 +188,12 @@ typedef struct usbdev_driver {
      * @param[in]   dev     USB device descriptor
      * @param[in]   type    USB endpoint type
      * @param[in]   dir     USB endpoint direction
+     * @param[in]   buf_len optimal USB endpoint buffer size
      *
      * @return              USB endpoint descriptor
-     * @return              NULL on error   
+     * @return              NULL on error
      */
-    usbdev_ep_t *(*new_ep)(usbdev_t *dev, usb_ep_type_t type, usb_ep_dir_t dir);
+    usbdev_ep_t *(*new_ep)(usbdev_t *dev, usb_ep_type_t type, usb_ep_dir_t dir, size_t buf_len);
 
     /**
      * @brief   Get an option value from a given usb device endpoint
@@ -238,7 +241,7 @@ typedef struct usbdev_driver {
 } usbdev_driver_t;
 
 typedef struct usbdev_ep_driver {
-    
+
     /**
      * @brief Initialize the USB endpoint
      *
