@@ -34,9 +34,13 @@
 extern "C" {
 #endif
 
+#define SAM_USB_BUF_SPACE   1024
+
 typedef struct {
     usbdev_t usbdev;
     uint16_t int_flags;
+    uint8_t buffer[SAM_USB_BUF_SPACE];
+    size_t used;                        /**< Number of bytes from the buffer that are used */
 } sam0_common_usb_t;
 
 void usb_init(void);

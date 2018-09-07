@@ -28,6 +28,7 @@
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
+
 static sam0_common_usb_t *_usbdev;
 
 static UsbDeviceDescBank banks[16];
@@ -35,7 +36,10 @@ static UsbDeviceDescBank banks[16];
 static usbdev_ep_t endpoints[16];
 
 void usbdev_ep_init(usbdev_ep_t *ep);
-static usbdev_ep_t *usbdev_new_ep(usbdev_t *dev, usb_ep_type_t type, usb_ep_dir_t dir);
+static usbdev_ep_t *usbdev_new_ep(usbdev_t *dev, usb_ep_type_t type, usb_ep_dir_t dir, size_t buf_len);
+static void _ep_address(usbdev_ep_t *ep);
+static void _ep_size(usbdev_ep_t *ep);
+static int _ep_unready(usbdev_ep_t *ep);
 int usbdev_ep_get(usbdev_ep_t *ep, usbopt_ep_t opt, void *value, size_t max_len);
 int usbdev_ep_set(usbdev_ep_t *ep, usbopt_ep_t opt, const void *value, size_t value_len);
 int usbdev_ep_ready(usbdev_ep_t *ep, size_t len);
@@ -81,7 +85,7 @@ static void _enable_ep_irq(usbdev_ep_t *ep)
         }
     }
     else {
-        ep_reg->EPINTENSET.reg = USB_DEVICE_EPINTENSET_TRCPT1 
+        ep_reg->EPINTENSET.reg = USB_DEVICE_EPINTENSET_TRCPT1
                                | USB_DEVICE_EPINTENSET_TRFAIL1
                                | USB_DEVICE_EPINTENSET_STALL1;
     }
@@ -103,7 +107,7 @@ static void _disable_ep_irq(usbdev_ep_t *ep)
 
 static bool _ep_in_flags_set(UsbDeviceEndpoint *ep_reg)
 {
-    return ep_reg->EPINTFLAG.reg  & 
+    return ep_reg->EPINTFLAG.reg  &
            ep_reg->EPINTENSET.reg &
            (USB_DEVICE_EPINTENSET_TRFAIL0 | USB_DEVICE_EPINTENSET_TRCPT0 | USB_DEVICE_EPINTENSET_RXSTP | USB_DEVICE_EPINTENSET_STALL0);
 }
@@ -131,11 +135,10 @@ static bool usb_swrst_syncing(void)
     return false;
 }
 
-static usbdev_ep_t *usbdev_new_ep(usbdev_t *dev, usb_ep_type_t type, usb_ep_dir_t dir)
+static usbdev_ep_t *usbdev_new_ep(usbdev_t *dev, usb_ep_type_t type, usb_ep_dir_t dir, size_t buf_len)
 {
-    (void)dev;
     /* The IP supports all types for all endpoints */
-    (void)type;
+    (void)dev;
     usbdev_ep_t *res = NULL;
     if (type == USB_EP_TYPE_CONTROL) {
         res = _get_ep(0, dir);
@@ -152,8 +155,18 @@ static usbdev_ep_t *usbdev_new_ep(usbdev_t *dev, usb_ep_type_t type, usb_ep_dir_
         }
     }
     if (res) {
-        res->type = type;
         res->dir = dir;
+        if (_usbdev->used + buf_len < SAM_USB_BUF_SPACE) {
+            res->buf = _usbdev->buffer + _usbdev->used;
+            _usbdev->used += buf_len;
+            res->len = buf_len;
+            _ep_address(res);
+            _ep_size(res);
+        }
+        else {
+            return NULL;
+        }
+        res->type = type;
         res->cb = NULL;
         res->driver = &driver_ep;
     }
@@ -189,6 +202,7 @@ void usbdev_init(usbdev_t *dev)
 {
     /* Only one usb device on this board */
     _usbdev = (sam0_common_usb_t*)dev;
+    _usbdev->used = 0;
     /* Set GPIO */
     gpio_init(GPIO_PIN(PA,24), GPIO_IN);
     gpio_init(GPIO_PIN(PA,25), GPIO_IN);
@@ -379,10 +393,10 @@ void usbdev_esr(usbdev_t *dev)
 }
 
 
-void _ep_address(usbdev_ep_t *ep, char* buf)
+static void _ep_address(usbdev_ep_t *ep)
 {
     UsbDeviceDescBank *bank = &banks[_get_ep_num(ep->num, ep->dir)];
-    bank->ADDR.reg = (uint32_t)buf;
+    bank->ADDR.reg = (uint32_t)ep->buf;
 }
 
 void _ep_set_stall(usbdev_ep_t *ep, usbopt_enable_t enable)
@@ -422,11 +436,11 @@ usbopt_enable_t _ep_get_stall(usbdev_ep_t *ep)
 
 }
 
-void _ep_size(usbdev_ep_t *ep, size_t size)
+static void _ep_size(usbdev_ep_t *ep)
 {
     UsbDeviceDescBank *bank = &banks[_get_ep_num(ep->num, ep->dir)];
     unsigned val = 0x00;
-    switch(size) {
+    switch(ep->len) {
         case 8:
             val = 0x0;
             break;
@@ -502,22 +516,43 @@ int usbdev_ep_set(usbdev_ep_t *ep, usbopt_ep_t opt, const void *value, size_t va
             break;
         case USBOPT_EP_BUF_ADDR:
             assert(value_len == sizeof(uint8_t*));
-            _ep_address(ep, *((char**)value));
             res = sizeof(char*);
             break;
         case USBOPT_EP_BUF_SIZE:
             assert(value_len == sizeof(size_t));
-            _ep_size(ep, *((size_t*)value));
             break;
         case USBOPT_EP_STALL:
             assert(value_len == sizeof(usbopt_enable_t));
             _ep_set_stall(ep, *(usbopt_enable_t*)value);
+            res = sizeof(usbopt_enable_t);
+        case USBOPT_EP_READY:
+            assert(value_len == sizeof(usbopt_enable_t));
+            if (*((usbopt_enable_t *)value)) {
+                _ep_unready(ep);
+            }
+            else {
+                usbdev_ep_ready(ep, 0);
+            }
+            break;
             res = sizeof(usbopt_enable_t);
         default:
             break;
     }
     return res;
 }
+
+static int _ep_unready(usbdev_ep_t *ep)
+{
+    UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep->num];
+    if (ep->dir == USB_EP_DIR_IN) {
+        ep_reg->EPSTATUSCLR.reg = USB_DEVICE_EPSTATUSSET_BK1RDY;
+    }
+    else {
+        ep_reg->EPSTATUSSET.reg = USB_DEVICE_EPSTATUSCLR_BK0RDY;
+    }
+    return 0;
+}
+
 
 int usbdev_ep_ready(usbdev_ep_t *ep, size_t len)
 {
