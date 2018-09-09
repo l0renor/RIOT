@@ -136,7 +136,7 @@ endif
 ifneq (,$(filter rdcli_simple,$(USEMODULE)))
     DIRS += net/application_layer/rdcli_simple
 endif
-ifneq (,$(filter plumbum,$(USEMODULE)))
+ifneq (,$(filter plumbum plumbum_%,$(USEMODULE)))
     DIRS += usb/plumbum
 endif
 ifneq (,$(filter usb_hid,$(USEMODULE)))

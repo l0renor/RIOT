@@ -41,6 +41,8 @@ extern "c" {
 #define USB_TYPE_DESCRIPTOR_DEV_QUALIFIER   0x06 /**< Device qualifier          */
 #define USB_TYPE_DESCRIPTOR_SPEED_CONFIG    0x07 /**< Other speed configuration */
 #define USB_TYPE_DESCRIPTOR_IFACE_POWER     0x08 /**< Interface power           */
+#define USB_TYPE_DESCRIPTOR_INTERFACE_ASSOC 0x0B /**< Interface association
+                                                   *  descriptor                */
 /** @} */
 
 /**
@@ -127,6 +129,17 @@ typedef struct __attribute__((packed)) {
     uint16_t index;
     uint16_t length;
 } usb_setup_t;
+
+typedef struct __attribute__((packed)) {
+    uint8_t length;
+    uint8_t type;
+    uint8_t first_interface;
+    uint8_t interface_count;
+    uint8_t class;
+    uint8_t subclass;
+    uint8_t protocol;
+    uint8_t idx;
+} usb_descriptor_interface_association_t;
 
 #ifdef __cplusplus
 }
