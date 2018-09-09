@@ -183,6 +183,7 @@ static int _init(plumbum_t *plumbum, plumbum_handler_t *handler)
         DEBUG("hid_keyboard: error getting interface\n");
         return -1;
     }
+    hid->ep.interval = 20;
     size_t len = sizeof(buf);
     static const usbopt_enable_t enable = USBOPT_ENABLE;
     uint8_t *bufptr = buf;
