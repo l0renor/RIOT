@@ -30,9 +30,11 @@ extern "C" {
 #endif
 
 size_t plumbum_hdrs_config_size(plumbum_t *plumbum);
+size_t plumbum_hdrs_fmt_hdrs(plumbum_t *plumbum);
 size_t plumbum_hdrs_fmt_additional(plumbum_t *plumbum, plumbum_hdr_gen_t *hdr);
 size_t plumbum_hdrs_fmt_ifaces(plumbum_t *plumbum);
-size_t plumbum_hdrs_fmt_endpoints(plumbum_t *plumbum, plumbum_interface_t *iface);
+size_t plumbum_hdrs_fmt_endpoints(plumbum_t *plumbum, plumbum_endpoint_t *ep);
+size_t plumbum_hdrs_fmt_conf(plumbum_t *plumbum);
 
 #ifdef __cplusplus
 }

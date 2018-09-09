@@ -73,21 +73,30 @@ struct plumbum_string {
 
 struct plumbum_endpoint {
     struct plumbum_endpoint *next;
+    plumbum_hdr_gen_t *hdr_gen;
     usbdev_ep_t *ep;
+    uint16_t maxpacketsize;             /**< Max packet size of this endpoint */
     uint8_t interval;                   /**< Poll interval for interrupt endpoints */
 };
 
 struct plumbum_interface {
     struct plumbum_interface *next;
+    struct plumbum_interface_alt *alts;
     plumbum_handler_t* handler;
-    plumbum_hdr_gen_t *hdr_gen;
-    plumbum_endpoint_t *ep;                   /** LL of endpoints */
-    plumbum_string_t *descr;
+    plumbum_hdr_gen_t *hdr_gen;     /**< Additional header generators */
+    plumbum_endpoint_t *ep;         /**< Linked list of endpoints     */
+    plumbum_string_t *descr;        /**< Descriptor string            */
     uint16_t idx;
     uint8_t class;
     uint8_t subclass;
     uint8_t protocol;
 };
+
+typedef struct plumbum_interface_alt {
+    struct plumbum_interface_alt *next;
+    plumbum_hdr_gen_t *hdr_gen;
+    plumbum_endpoint_t *ep;
+} plumbum_interface_alt_t;
 
 typedef struct {
     size_t start;
@@ -139,6 +148,7 @@ struct plumbum_handler {
 
 uint16_t plumbum_add_interface(plumbum_t *plumbum, plumbum_interface_t *iface);
 int plumbum_add_endpoint(plumbum_t *plumbum, plumbum_interface_t *iface, plumbum_endpoint_t* ep, usb_ep_type_t type, usb_ep_dir_t dir, size_t len);
+void plumbum_add_conf_descriptor(plumbum_t *plumbum, plumbum_hdr_gen_t* hdr_gen);
 plumbum_t *plumbum_get_ctx(void);
 void plumbum_register_event_handler(plumbum_t *plumbum, plumbum_handler_t *handler);
 void plumbum_init(void);

@@ -24,14 +24,17 @@
 #include "usb/message.h"
 #include "usb/plumbum.h"
 #include "usb/plumbum/hdrs.h"
+
 #include "usb/hid/keyboard.h"
+#include "usb/audio.h"
+#include "usb/plumbum/audio.h"
 
 #include "usb.h"
 #include "cpu.h"
 
 #include <string.h>
 #include <errno.h>
-#define ENABLE_DEBUG    (0)
+#define ENABLE_DEBUG    (1)
 #include "debug.h"
 
 #define _PLUMBUM_MSG_QUEUE_SIZE    (8)
@@ -39,7 +42,7 @@
 #define PLUMBUM_PRIO                (THREAD_PRIORITY_MAIN - 6)
 #define PLUMBUM_TNAME               "plumbum"
 
-#define PLUMBUM_MAX_SIZE            8
+#define PLUMBUM_MAX_SIZE            16
 
 static plumbum_t _plumbum;
 extern const usbdev_driver_t driver;
@@ -143,6 +146,14 @@ uint16_t plumbum_add_string_descriptor(plumbum_t *plumbum, plumbum_string_t *des
     return desc->idx;
 }
 
+void plumbum_add_conf_descriptor(plumbum_t *plumbum, plumbum_hdr_gen_t* hdr_gen)
+{
+    mutex_lock(&plumbum->lock);
+    hdr_gen->next = plumbum->hdr_gen;
+    plumbum->hdr_gen = hdr_gen;
+    mutex_unlock(&plumbum->lock);
+}
+
 void plumbum_ep0_ready(plumbum_t *plumbum)
 {
     plumbum_controlbuilder_t *bldr = &plumbum->builder;
@@ -213,6 +224,7 @@ int plumbum_add_endpoint(plumbum_t *plumbum, plumbum_interface_t *iface, plumbum
     mutex_lock(&plumbum->lock);
     usbdev_ep_t* usbdev_ep = plumbum->dev->driver->new_ep(plumbum->dev, type, dir, len);
     if (ep) {
+        ep->maxpacketsize = usbdev_ep->len;
         ep->ep = usbdev_ep;
         ep->next = iface->ep;
         iface->ep = ep;
@@ -292,30 +304,10 @@ static void _req_dev(plumbum_t *plumbum)
     plumbum_ep0_ready(plumbum);
 }
 
-static void _req_config(plumbum_t *plumbum, size_t max_len)
+static void _req_config(plumbum_t *plumbum)
 {
-    size_t len = 0;
     mutex_lock(&plumbum->lock);
-    usb_descriptor_configuration_t conf;
-    memset(&conf, 0 ,sizeof(usb_descriptor_configuration_t));
-    conf.length = sizeof(usb_descriptor_configuration_t);
-    conf.type = USB_TYPE_DESCRIPTOR_CONFIGURATION;
-    conf.total_length = sizeof(usb_descriptor_configuration_t);
-    conf.val = 1;
-    conf.attributes = USB_CONF_ATTR_RESERVED;
-    if (USB_CONFIG_SELF_POWERED) {
-        conf.attributes |= USB_CONF_ATTR_SELF_POWERED;
-    }
-    /* Todo: upper bound */
-    conf.max_power = USB_CONFIG_MAX_POWER/2;
-    conf.num_interfaces = 1;
-    len += sizeof(usb_descriptor_configuration_t);
-    /* TODO: add buffer upper bound */
-    (void)max_len;
-    conf.total_length = plumbum_hdrs_config_size(plumbum);
-    conf.idx = plumbum->config.idx;
-    plumbum_put_bytes(plumbum, (uint8_t*)&conf, sizeof(conf));
-    len += plumbum_hdrs_fmt_ifaces(plumbum);
+    plumbum_hdrs_fmt_conf(plumbum);
     mutex_unlock(&plumbum->lock);
     plumbum_ep0_ready(plumbum);
 }
@@ -342,7 +334,7 @@ static void _req_descriptor(plumbum_t *plumbum, usb_setup_t *pkt)
             _req_dev(plumbum);
             break;
         case 0x2:
-            _req_config(plumbum, pkt->length);
+            _req_config(plumbum);
             break;
         case 0x03:
             _req_str(plumbum, idx);
@@ -385,7 +377,7 @@ void recv_dev_setup(plumbum_t *plumbum, usbdev_ep_t *ep, usb_setup_t *pkt)
 
 void recv_interface_setup(plumbum_t *plumbum, usbdev_ep_t *ep, usb_setup_t *pkt)
 {
-    uint16_t destination = pkt->index;
+    uint16_t destination = pkt->index & 0x0f;
     (void)ep;
     /* Find interface handler */
     mutex_lock(&plumbum->lock);
@@ -435,6 +427,12 @@ void recv_setup(plumbum_t *plumbum, usbdev_ep_t *ep)
 static void *_plumbum_thread(void *args)
 {
     plumbum_t *plumbum = (plumbum_t*)args;
+    plumbum_audio_t audio;
+
+    plumbum_audio_block_clock_t a_clock;
+    plumbum_audio_block_input_t a_input;
+    plumbum_audio_block_output_t a_output;
+
     mutex_lock(&plumbum->lock);
     usbdev_t *dev = plumbum->dev;
     plumbum->pid = sched_active_pid;
@@ -470,7 +468,18 @@ static void *_plumbum_thread(void *args)
 
     plumbum->state = PLUMBUM_STATE_DISCONNECT;
     mutex_unlock(&plumbum->lock);
+    plumbum_audio_init(plumbum, &audio);
     keyboard_init(plumbum);
+
+    plumbum_audio_add_clock(&audio, &a_clock, PLUMBUM_AUDIO_CLOCK_INTERNAL_FIXED);
+    plumbum_audio_add_input(&audio, &a_input, USB_AUDIO_TERMINALTYPE_USB_STREAMING);
+    plumbum_audio_add_output(&audio, &a_output, USB_AUDIO_TERMINALTYPE_ANALOG);
+
+    a_output.clock = &a_clock;
+    a_input.clock = &a_clock;
+
+    a_output.source = (plumbum_audio_block_t*)&a_input;
+
     xtimer_sleep(1);
     usbopt_enable_t enable = USBOPT_ENABLE;
     dev->driver->set(dev, USBOPT_ATTACH, &enable, sizeof(usbopt_enable_t));
@@ -517,9 +526,9 @@ void _event_cb(usbdev_t *usbdev, usbdev_event_t event)
                 plumbum->setup_state = PLUMBUM_SETUPRQ_READY;
                 plumbum->dev->driver->set(plumbum->dev, USBOPT_ADDRESS, &plumbum->addr, sizeof(uint8_t));
                 plumbum_endpoint_t *ep = plumbum->iface->ep;
-                static const usbopt_enable_t enable = USBOPT_ENABLE;
+                //static const usbopt_enable_t enable = USBOPT_ENABLE;
                 printf("Enabling %u\n", ep->ep->num);
-                ep->ep->driver->set(ep->ep, USBOPT_EP_ENABLE, &enable, sizeof(usbopt_enable_t));
+                //ep->ep->driver->set(ep->ep, USBOPT_EP_ENABLE, &enable, sizeof(usbopt_enable_t));
                 puts("Reset");
                 }
                 break;
@@ -582,7 +591,6 @@ void _event_ep0_cb(usbdev_ep_t *ep, usbdev_event_t event)
                     plumbum->builder.reqlen = plumbum->setup.length;
                     plumbum->out->driver->ready(plumbum->out, 0);
                     recv_setup(plumbum, ep);
-                    //_print_setup(&plumbum->setup);
                 }
                 break;
             case USBDEV_EVENT_TR_FAIL:
