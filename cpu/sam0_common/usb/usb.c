@@ -25,7 +25,7 @@
 
 #include "bitarithm.h"
 
-#define ENABLE_DEBUG (0)
+#define ENABLE_DEBUG (1)
 #include "debug.h"
 
 
@@ -56,6 +56,11 @@ const usbdev_ep_driver_t driver_ep = {
 static inline unsigned _get_ep_num(unsigned num, usb_ep_dir_t dir)
 {
     return 2*num + (dir == USB_EP_DIR_OUT ? 0 : 1);
+}
+
+static inline unsigned _get_ep_num2(usbdev_ep_t *ep)
+{
+    return 2*ep->num + (ep->dir == USB_EP_DIR_OUT ? 0 : 1);
 }
 
 static inline usbdev_ep_t* _get_ep(unsigned num, usb_ep_dir_t dir)
@@ -105,14 +110,14 @@ static void _disable_ep_irq(usbdev_ep_t *ep)
     }
 }
 
-static bool _ep_in_flags_set(UsbDeviceEndpoint *ep_reg)
+static bool _ep_out_flags_set(UsbDeviceEndpoint *ep_reg)
 {
     return ep_reg->EPINTFLAG.reg  &
            ep_reg->EPINTENSET.reg &
            (USB_DEVICE_EPINTENSET_TRFAIL0 | USB_DEVICE_EPINTENSET_TRCPT0 | USB_DEVICE_EPINTENSET_RXSTP | USB_DEVICE_EPINTENSET_STALL0);
 }
 
-static bool _ep_out_flags_set(UsbDeviceEndpoint *ep_reg)
+static bool _ep_in_flags_set(UsbDeviceEndpoint *ep_reg)
 {
     return ep_reg->EPINTFLAG.reg &
            ep_reg->EPINTENSET.reg &
@@ -251,15 +256,18 @@ void isr_usb(void)
         unsigned ep_num = bitarithm_lsb(USB->DEVICE.EPINTSMRY.reg);
         UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep_num];
         if (_ep_in_flags_set(ep_reg)) {
-            usbdev_ep_t *ep = &endpoints[ep_num];
+            usbdev_ep_t *ep = &endpoints[_get_ep_num(ep_num, USB_EP_DIR_IN)];
             _disable_ep_irq(ep);
             ep->cb(ep, USBDEV_EVENT_ESR);
         }
         else if (_ep_out_flags_set(ep_reg))
         {
-            usbdev_ep_t *ep = &endpoints[ep_num+1];
+            usbdev_ep_t *ep = &endpoints[_get_ep_num(ep_num, USB_EP_DIR_OUT)];
             _disable_ep_irq(ep);
             ep->cb(ep, USBDEV_EVENT_ESR);
+        }
+        else {
+            DEBUG("Unhandled ISR\n");
         }
     }
     else {
@@ -404,11 +412,9 @@ void _ep_set_stall(usbdev_ep_t *ep, usbopt_enable_t enable)
     UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep->num];
     if (ep->dir == USB_EP_DIR_IN) {
         if (enable) {
-            DEBUG("usb: enable stall for IN\n");
             ep_reg->EPSTATUSSET.reg = USB_DEVICE_EPSTATUSSET_STALLRQ1;
         }
         else {
-            DEBUG("usb: disable stall for IN\n");
             ep_reg->EPSTATUSCLR.reg = USB_DEVICE_EPSTATUSSET_STALLRQ1;
         }
     }
@@ -476,6 +482,13 @@ void usbdev_ep_init(usbdev_ep_t *ep)
     _enable_ep_irq(ep);
 }
 
+size_t _ep_get_available(usbdev_ep_t *ep)
+{
+    UsbDeviceDescBank *bank = &banks[_get_ep_num(ep->num, ep->dir)];
+    return (size_t)bank->PCKSIZE.bit.BYTE_COUNT;
+
+}
+
 int usbdev_ep_get(usbdev_ep_t *ep, usbopt_ep_t opt, void *value, size_t max_len)
 {
     (void)ep;
@@ -490,6 +503,10 @@ int usbdev_ep_get(usbdev_ep_t *ep, usbopt_ep_t opt, void *value, size_t max_len)
         case USBOPT_EP_STALL:
             *(usbopt_enable_t*)value = _ep_get_stall(ep);
             res = sizeof(usbopt_enable_t);
+            break;
+        case USBOPT_EP_AVAILABLE:
+            *(size_t*)value = _ep_get_available(ep);
+            res = sizeof(size_t);
             break;
         default:
             break;
@@ -508,6 +525,7 @@ int usbdev_ep_set(usbdev_ep_t *ep, usbopt_ep_t opt, const void *value, size_t va
         case USBOPT_EP_ENABLE:
             assert(value_len == sizeof(usbopt_enable_t));
             if (*((usbopt_enable_t *)value)) {
+                usbdev_ep_init(ep);
                 _ep_enable(ep);
             }
             else {
@@ -572,7 +590,6 @@ int usbdev_ep_ready(usbdev_ep_t *ep, size_t len)
 void usbdev_ep_esr(usbdev_ep_t *ep)
 {
     UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep->num];
-    DEBUG("st %s :%x - %x\n", ep->dir == USB_EP_DIR_OUT ? "out" : "in", ep_reg->EPSTATUS.reg, ep_reg->EPINTFLAG.reg);
     signed event = -1;
     if (ep->dir == USB_EP_DIR_OUT) {
         if (ep_reg->EPINTFLAG.bit.TRCPT0) {
@@ -580,8 +597,8 @@ void usbdev_ep_esr(usbdev_ep_t *ep)
             event = USBDEV_EVENT_TR_COMPLETE;
         }
         else if (ep_reg->EPINTFLAG.bit.RXSTP) {
-            event = USBDEV_EVENT_TR_COMPLETE;
             ep_reg->EPINTFLAG.reg = USB_DEVICE_EPINTFLAG_RXSTP;
+            event = USBDEV_EVENT_TR_COMPLETE;
         }
         else if (ep_reg->EPINTFLAG.bit.TRFAIL0) {
             ep_reg->EPINTFLAG.reg = USB_DEVICE_EPINTFLAG_TRFAIL0;
@@ -590,6 +607,9 @@ void usbdev_ep_esr(usbdev_ep_t *ep)
         else if (ep_reg->EPINTFLAG.bit.STALL0) {
             ep_reg->EPINTFLAG.reg = USB_DEVICE_EPINTFLAG_STALL0;
             event = USBDEV_EVENT_TR_STALL;
+        }
+        else {
+            DEBUG("Unhandled in %u: %x\n", ep->num, ep_reg->EPINTFLAG.reg);
         }
     }
     else {
@@ -604,6 +624,9 @@ void usbdev_ep_esr(usbdev_ep_t *ep)
         else if (ep_reg->EPINTFLAG.bit.STALL1) {
             ep_reg->EPINTFLAG.reg = USB_DEVICE_EPINTFLAG_STALL1;
             event = USBDEV_EVENT_TR_STALL;
+        }
+        else {
+            DEBUG("Unhandled out %u: %x\n", ep->num, ep_reg->EPINTFLAG.reg);
         }
     }
     if (event >= 0) {
