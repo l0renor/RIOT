@@ -17,9 +17,11 @@
  */
 
 #include <string.h>
+#include "byteorder.h"
 #include "usb/plumbum/audio.h"
 #include "usb/plumbum.h"
 #include "usb/audio.h"
+#include "usb/message.h"
 
 #define ENABLE_DEBUG    (1)
 #include "debug.h"
@@ -68,6 +70,16 @@ uint8_t _get_new_id(plumbum_audio_t *audio)
         }
     }
     return id;
+}
+
+plumbum_audio_block_t *_id_to_block(plumbum_audio_t *audio, uint8_t idx)
+{
+    for (plumbum_audio_block_t *blk = audio->blocks; blk; blk = blk->next) {
+        if (blk->id == idx) {
+            return blk;
+        }
+    }
+    return NULL;
 }
 
 int plumbum_audio_add_block(plumbum_audio_t *audio,
@@ -329,6 +341,7 @@ static int _init(plumbum_t *plumbum, plumbum_handler_t *handler)
     audio->stream.ep = NULL;
 
     audio->stream_ep.interval = 1;
+    audio->stream_ep.maxpacketsize = 294;
     audio->stream_ep.hdr_gen = &audio->stream_ep_hdr;
 
     audio->control_hdr.next = NULL;
@@ -353,33 +366,91 @@ static int _init(plumbum_t *plumbum, plumbum_handler_t *handler)
     plumbum_add_interface(plumbum, &audio->stream);
     plumbum_add_interface(plumbum, &audio->control);
     plumbum_add_conf_descriptor(plumbum, &audio->assoc_hdr);
+
+    plumbum_enable_endpoint(&audio->stream_ep);
     _setup_hdrs(audio);
     return 0;
 }
 
-static void _print_setup(usb_setup_t *pkt)
+static int _handle_setup_clock(plumbum_audio_t *audio, plumbum_audio_block_t *blk, usb_audio_control_request_t *pkt)
 {
-    printf("plumbum: setup t:0x%.2x r:0x%x, v:0x%x l:%u\n", pkt->type, pkt->request, pkt->value, pkt->length);
+    (void)blk;
+    switch(pkt->cs) {
+        case 0x01: /* Clock frequency request */
+        {
+            static const uint32_t freq = 48000;
+            if (pkt->length == 4) {
+                plumbum_put_bytes(audio->plumbum, (uint8_t*)&freq, sizeof(uint32_t));
+                plumbum_ep0_ready(audio->plumbum);
+
+            }
+            else {
+                uint16_t numranges = 0x0001;
+                plumbum_put_bytes(audio->plumbum, (uint8_t*)&numranges, sizeof(uint16_t));
+
+                uint32_t res = 1;
+                plumbum_put_bytes(audio->plumbum, (uint8_t*)&freq, sizeof(uint32_t));
+                plumbum_put_bytes(audio->plumbum, (uint8_t*)&freq, sizeof(uint32_t));
+                plumbum_put_bytes(audio->plumbum, (uint8_t*)&res, sizeof(uint32_t));
+
+                plumbum_ep0_ready(audio->plumbum);
+            }
+            return sizeof(uint32_t);
+        }
+        default:
+        break;
+    }
+
+
+    return -1; 
 }
 
-static int _handle_setup(plumbum_t *plumbum, plumbum_handler_t *handler, usb_setup_t *pkt)
+static int _handle_setup_class(plumbum_audio_t *audio, usb_audio_control_request_t *pkt)
 {
-    (void)plumbum;
-    (void)handler;
-    _print_setup(pkt);
-    switch(pkt->request) {
+    plumbum_audio_block_t *blk = _id_to_block(audio, pkt->id);
+    if (!(blk)) {
+        return -1;
+    }
+    switch (blk->type) {
+        case AUDIO_BLOCK_TYPE_CLOCK:
+            return _handle_setup_clock(audio, blk, pkt);
         default:
             return -1;
     }
 }
 
+static void _print_setup(usb_setup_t *pkt)
+{
+    printf("plumbum: stp t:0x%.2x r:0x%.2x v:0x%.4x i:0x%.4x l:%u\n", pkt->type, pkt->request, pkt->value, pkt->index, pkt->length);
+}
+
+static int _handle_setup(plumbum_t *plumbum, plumbum_handler_t *handler, usb_setup_t *pkt)
+{
+    (void)plumbum;
+    plumbum_audio_t *audio = (plumbum_audio_t *)handler;
+    _print_setup(pkt);
+    if (usb_setup_is_type_class(pkt)) {
+        /* Class specific (audio) request */
+        _handle_setup_class(audio, (usb_audio_control_request_t*)pkt);
+
+    }
+    else if (usb_setup_is_type_standard(pkt)) {
+    }
+    else {
+        return -1;
+    }
+    return -1;
+}
+
 static int event_handler(plumbum_t *plumbum, plumbum_handler_t *handler, uint16_t event, void *arg)
 {
-    DEBUG("event received\n");
     switch(event) {
             //case PLUMBUM_MSG_EP_EVENT:
         case PLUMBUM_MSG_TYPE_SETUP_RQ:
             return _handle_setup(plumbum, handler, (usb_setup_t*)arg);
+        case PLUMBUM_MSG_TYPE_TR_COMPLETE:
+            DEBUG("ISO transfer %d\n", ((usbdev_ep_t*)arg)->num);
+            break;
         default:
             return -1;
             break;

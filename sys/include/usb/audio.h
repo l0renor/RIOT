@@ -65,6 +65,19 @@ extern "C" {
 
 #define USB_AUDIO_TERMINALTYPE_ANALOG           0x0601
 
+/**
+ * @brief Audio class control request layout
+ */
+typedef struct __attribute__((packed)) {
+    uint8_t type;
+    uint8_t request;
+    uint8_t cn;             /**< Channel number or mixer control number */
+    uint8_t cs;             /**< Control selector */
+    uint8_t interface;
+    uint8_t id;
+    uint16_t length;
+} usb_audio_control_request_t;
+
 /* USB ADC v2 structs */
 
 typedef struct __attribute__((packed)) {
@@ -175,7 +188,6 @@ typedef struct __attribute__((packed)) {
     uint8_t lockdelayunits;
     uint16_t lockdelay;
 } usb_descriptor_as2_endpoint_t; 
-
 /* USB ADC v3 structs */
 
 typedef struct __attribute__((packed)) {

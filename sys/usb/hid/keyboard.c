@@ -43,7 +43,6 @@
 //void keyboard_create(char *stack, int stacksize, char priority,
 //                   const char *name);
 
-static uint8_t buf[8];
 static bool idle = false;
 
 static int event_handler(plumbum_t *plumbum, plumbum_handler_t *handler, uint16_t event, void *arg);
@@ -184,15 +183,7 @@ static int _init(plumbum_t *plumbum, plumbum_handler_t *handler)
         return -1;
     }
     hid->ep.interval = 20;
-    size_t len = sizeof(buf);
-    static const usbopt_enable_t enable = USBOPT_ENABLE;
-    uint8_t *bufptr = buf;
-    hid->ep.ep->driver->set(hid->ep.ep, USBOPT_EP_BUF_ADDR, &bufptr, sizeof(uint8_t*));
-    hid->ep.ep->driver->set(hid->ep.ep, USBOPT_EP_BUF_SIZE, &len, sizeof(len));
-    hid->ep.ep->driver->set(hid->ep.ep, USBOPT_EP_STALL, &enable, sizeof(usbopt_enable_t));
-    hid->ep.ep->driver->set(hid->ep.ep, USBOPT_EP_ENABLE, &enable, sizeof(usbopt_enable_t));
-
-    memset(buf, 0, sizeof(buf));
+    plumbum_enable_endpoint(&hid->ep);
     gpio_init_int(BTN0_PIN, BTN0_MODE, GPIO_BOTH, _gpio_cb, hid);
 
     return 0;

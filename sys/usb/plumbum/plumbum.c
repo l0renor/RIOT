@@ -235,6 +235,28 @@ int plumbum_add_endpoint(plumbum_t *plumbum, plumbum_interface_t *iface, plumbum
     return res;
 }
 
+static void _activate_endpoints(plumbum_t *plumbum)
+{
+    for (plumbum_interface_t *iface = plumbum->iface; iface; iface = iface->next) {
+        for (plumbum_endpoint_t *ep = iface->ep; ep; ep = ep->next) {
+            if (ep->active) {
+                static const usbopt_enable_t enable = USBOPT_ENABLE;
+                ep->ep->driver->set(ep->ep, USBOPT_EP_ENABLE, &enable, sizeof(usbopt_enable_t));
+                printf("activated endpoint %d, dir %s\n", ep->ep->num, ep->ep->dir == USB_EP_DIR_OUT? "out" : "in");
+            }
+        }
+        for (plumbum_interface_alt_t *alt = iface->alts; alt; alt = alt->next) {
+            for (plumbum_endpoint_t *ep = alt->ep; ep; ep = ep->next) {
+                if (ep->active) {
+                    static const usbopt_enable_t enable = USBOPT_ENABLE;
+                    ep->ep->driver->set(ep->ep, USBOPT_EP_ENABLE, &enable, sizeof(usbopt_enable_t));
+                    printf("activated endpoint %d, dir %s\n", ep->ep->num, ep->ep->dir == USB_EP_DIR_OUT? "out" : "in");
+                }
+            }
+        }
+    }
+}
+
 static void _plumbum_config_ep0(plumbum_t *plumbum)
 {
     static const usbopt_enable_t enable = USBOPT_ENABLE;
@@ -366,6 +388,9 @@ void recv_dev_setup(plumbum_t *plumbum, usbdev_ep_t *ep, usb_setup_t *pkt)
         switch (pkt->request) {
             case 0x05:
                 plumbum->addr = (uint8_t)pkt->value;
+                break;
+            case 0x09:
+                _activate_endpoints(plumbum);
                 break;
             default:
                 break;
@@ -525,10 +550,6 @@ void _event_cb(usbdev_t *usbdev, usbdev_event_t event)
                 plumbum->addr = 0;
                 plumbum->setup_state = PLUMBUM_SETUPRQ_READY;
                 plumbum->dev->driver->set(plumbum->dev, USBOPT_ADDRESS, &plumbum->addr, sizeof(uint8_t));
-                plumbum_endpoint_t *ep = plumbum->iface->ep;
-                //static const usbopt_enable_t enable = USBOPT_ENABLE;
-                printf("Enabling %u\n", ep->ep->num);
-                //ep->ep->driver->set(ep->ep, USBOPT_EP_ENABLE, &enable, sizeof(usbopt_enable_t));
                 puts("Reset");
                 }
                 break;
@@ -630,7 +651,6 @@ void _event_ep_cb(usbdev_ep_t *ep, usbdev_event_t event)
                 {
                     plumbum_interface_t *iface = _ep_to_iface(plumbum, ep);
                     if (iface) {
-                        puts("Calling event handler");
                         iface->handler->driver->event_handler(plumbum, iface->handler, PLUMBUM_MSG_TYPE_TR_COMPLETE, ep);
                     }
                     if (ep->dir == USB_EP_DIR_OUT)

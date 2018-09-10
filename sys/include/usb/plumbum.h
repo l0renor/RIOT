@@ -77,6 +77,7 @@ struct plumbum_endpoint {
     usbdev_ep_t *ep;
     uint16_t maxpacketsize;             /**< Max packet size of this endpoint */
     uint8_t interval;                   /**< Poll interval for interrupt endpoints */
+    bool active;                        /**< If the endpoint should be activated after reset */
 };
 
 struct plumbum_interface {
@@ -158,6 +159,16 @@ void plumbum_create(char *stack, int stacksize, char priority,
 size_t plumbum_put_bytes(plumbum_t *plumbum, const uint8_t *buf, size_t len);
 size_t plumbum_put_char(plumbum_t *plumbum, char c);
 void plumbum_ep0_ready(plumbum_t *plumbum);
+
+static inline void plumbum_enable_endpoint(plumbum_endpoint_t *ep)
+{
+    ep->active = true;
+}
+
+static inline void plumbum_disable_endpoint(plumbum_endpoint_t *ep)
+{
+    ep->active = false;
+}
 
 #ifdef __cplusplus
 }

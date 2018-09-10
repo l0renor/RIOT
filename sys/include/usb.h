@@ -49,7 +49,7 @@ extern "c" {
  * @brief USB peripheral product string
  */
 #ifndef USB_CONFIG_PRODUCT_STR
-#define USB_CONFIG_PRODUCT_STR  "This is the USB device you're looking for"
+#define USB_CONFIG_PRODUCT_STR  "This is the USB device with"
 #endif
 
 /**

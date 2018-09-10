@@ -10,6 +10,7 @@
 #define USB_MESSAGE_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "c" {
@@ -54,9 +55,17 @@ extern "c" {
 #define USB_CONF_ATTR_REM_WAKEUP            0x20
 /** @} */
 
+#define USB_SETUP_REQUEST_DEVICE2HOST           0x80
+
 #define USB_SETUP_REQUEST_RECIPIENT_MASK        0x1f
 #define USB_SETUP_REQUEST_RECIPIENT_DEVICE      0x00
 #define USB_SETUP_REQUEST_RECIPIENT_INTERFACE   0x01
+
+#define USB_SETUP_REQUEST_TYPE_MASK             0x60
+#define USB_SETUP_REQUEST_TYPE_STANDARD         0x00
+#define USB_SETUP_REQUEST_TYPE_CLASS            0x20
+#define USB_SETUP_REQUEST_TYPE_VENDOR           0x40
+#define USB_SETUP_REQUEST_TYPE_RESERVED         0x60
 
 /**
  * @brief USB isochronous endpoint interval
@@ -140,6 +149,31 @@ typedef struct __attribute__((packed)) {
     uint8_t protocol;
     uint8_t idx;
 } usb_descriptor_interface_association_t;
+
+/**
+ * @brief getter for setup packet direction
+ *
+ * @param[in]   pkt setup packet
+ *
+ * @return          nonzero if it is a read request
+ * @return          zero if it is a write request
+ */
+static inline bool usb_setup_is_read(usb_setup_t *pkt)
+{
+    return pkt->type & USB_SETUP_REQUEST_DEVICE2HOST;
+}
+
+static inline bool usb_setup_is_type_standard(usb_setup_t *pkt)
+{
+    return (pkt->type & USB_SETUP_REQUEST_TYPE_MASK) ==
+        USB_SETUP_REQUEST_TYPE_STANDARD;
+}
+
+static inline bool usb_setup_is_type_class(usb_setup_t *pkt)
+{
+    return (pkt->type & USB_SETUP_REQUEST_TYPE_MASK) ==
+        USB_SETUP_REQUEST_TYPE_CLASS;
+}
 
 #ifdef __cplusplus
 }
