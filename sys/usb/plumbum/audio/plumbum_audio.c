@@ -23,8 +23,17 @@
 #include "usb/audio.h"
 #include "usb/message.h"
 
+#include "tsrb.h"
+
 #define ENABLE_DEBUG    (1)
 #include "debug.h"
+
+
+#include "periph/pwm.h"
+#define PWMDEV      PWM_DEV(0)
+
+static tsrb_t tbuf;
+uint8_t buf[8192];
 
 static int _init(plumbum_t *plumbum, plumbum_handler_t *handler);
 static int event_handler(plumbum_t *plumbum, plumbum_handler_t *handler, uint16_t event, void *arg);
@@ -33,6 +42,27 @@ const plumbum_handler_driver_t audiov3_driver = {
     .init = _init,
     .event_handler = event_handler,
 };
+
+bool empty = true;
+void isr_tcc1(void)
+{
+    int16_t left_sample = 0, right_sample = 0;
+    if(tsrb_get(&tbuf, (char*)&left_sample, 2) == 2) {
+        pwm_set(PWMDEV, 0, left_sample/64 + 512);
+    }
+    if (tsrb_get(&tbuf, (char*)&right_sample, 2) == 2) {
+        pwm_set(PWMDEV, 1, right_sample/64 + 512);
+    }
+    if (tsrb_empty(&tbuf)) {
+        empty = true;
+        puts("OFF");
+        TCC1->INTENCLR.reg = TCC_INTENCLR_OVF;
+        pwm_set(PWMDEV, 0, 500);
+        pwm_set(PWMDEV, 1, 500);
+    }
+    TCC1->INTFLAG.reg = TCC_INTENCLR_OVF;
+    cortexm_isr_end();
+}
 
 /* Temp functions to ease development */
 int plumbum_audio_add_clock(plumbum_audio_t *audio,
@@ -267,8 +297,8 @@ size_t _audio_stream_descriptor(plumbum_t *plumbum, void *arg)
     format.type = USB_AUDIO_CS_INTERFACE;
     format.subtype = USB_AUDIO_AS_SUBTYPE_FORMAT;
     format.formattype = 0x01;
-    format.subslotsize = 3;
-    format.bitres = 24;
+    format.subslotsize = 2;
+    format.bitres = 16;
     plumbum_put_bytes(plumbum, (uint8_t*)&format, sizeof(format));
     len += sizeof(format);
     return len;
@@ -313,6 +343,14 @@ static void _setup_hdrs(plumbum_audio_t *audio)
 static int _init(plumbum_t *plumbum, plumbum_handler_t *handler)
 {
     DEBUG("Initializing audio subsystem\n");
+    pwm_init(PWMDEV, PWM_LEFT, 48000, 1000);
+
+    NVIC_EnableIRQ(TCC1_IRQn);
+
+    pwm_set(PWMDEV, 0, 500);
+    pwm_set(PWMDEV, 1, 500);
+
+    tsrb_init(&tbuf, (char*)buf, sizeof(buf));
     plumbum_audio_t *audio = (plumbum_audio_t*)handler;
     audio->blocks = NULL;
     memset(&audio->control, 0, sizeof(plumbum_interface_t));
@@ -366,6 +404,8 @@ static int _init(plumbum_t *plumbum, plumbum_handler_t *handler)
     plumbum_add_interface(plumbum, &audio->stream);
     plumbum_add_interface(plumbum, &audio->control);
     plumbum_add_conf_descriptor(plumbum, &audio->assoc_hdr);
+
+    audio->stream_ep.ep->driver->ready(audio->stream_ep.ep, 0);
 
     plumbum_enable_endpoint(&audio->stream_ep);
     _setup_hdrs(audio);
@@ -444,12 +484,26 @@ static int _handle_setup(plumbum_t *plumbum, plumbum_handler_t *handler, usb_set
 
 static int event_handler(plumbum_t *plumbum, plumbum_handler_t *handler, uint16_t event, void *arg)
 {
+
+    plumbum_audio_t *audio = (plumbum_audio_t *)handler;
     switch(event) {
             //case PLUMBUM_MSG_EP_EVENT:
         case PLUMBUM_MSG_TYPE_SETUP_RQ:
             return _handle_setup(plumbum, handler, (usb_setup_t*)arg);
         case PLUMBUM_MSG_TYPE_TR_COMPLETE:
-            DEBUG("ISO transfer %d\n", ((usbdev_ep_t*)arg)->num);
+            {
+                size_t len;
+                audio->stream_ep.ep->driver->get(audio->stream_ep.ep, USBOPT_EP_AVAILABLE, &len, sizeof(size_t));
+                audio->stream_ep.ep->driver->ready(audio->stream_ep.ep, 0);
+                if ((unsigned)tsrb_add(&tbuf, (char*)audio->stream_ep.ep->buf, len) != len) {
+                    DEBUG("Overflow in tsrb\n");
+                }
+                if (empty && (tsrb_avail(&tbuf) > 1000)) {
+                    puts("ON\n");
+                    empty = false;
+                    TCC1->INTENSET.reg = TCC_INTENSET_OVF;
+                }
+            }
             break;
         default:
             return -1;

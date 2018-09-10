@@ -34,7 +34,7 @@
 
 #include <string.h>
 #include <errno.h>
-#define ENABLE_DEBUG    (1)
+#define ENABLE_DEBUG    (0)
 #include "debug.h"
 
 #define _PLUMBUM_MSG_QUEUE_SIZE    (8)
@@ -42,7 +42,7 @@
 #define PLUMBUM_PRIO                (THREAD_PRIORITY_MAIN - 6)
 #define PLUMBUM_TNAME               "plumbum"
 
-#define PLUMBUM_MAX_SIZE            16
+#define PLUMBUM_MAX_SIZE            64
 
 static plumbum_t _plumbum;
 extern const usbdev_driver_t driver;
@@ -172,6 +172,13 @@ plumbum_interface_t *_ep_to_iface(plumbum_t *plumbum, usbdev_ep_t *ep)
                 return iface;
             }
         }
+        for (plumbum_interface_alt_t *alt = iface->alts; alt; alt = alt->next) {
+            for (plumbum_endpoint_t *pep = alt->ep; pep; pep = pep->next) {
+                if (pep->ep == ep) {
+                    return iface;
+                }
+            }
+        }
     }
     return NULL;
 }
@@ -223,14 +230,15 @@ int plumbum_add_endpoint(plumbum_t *plumbum, plumbum_interface_t *iface, plumbum
     int res = -ENOMEM;
     mutex_lock(&plumbum->lock);
     usbdev_ep_t* usbdev_ep = plumbum->dev->driver->new_ep(plumbum->dev, type, dir, len);
-    if (ep) {
+    if (usbdev_ep) {
         ep->maxpacketsize = usbdev_ep->len;
+        usbdev_ep->context = plumbum;
+        usbdev_ep->cb = _event_ep_cb;
         ep->ep = usbdev_ep;
         ep->next = iface->ep;
         iface->ep = ep;
         res = 0;
     }
-    ep->ep->cb = _event_ep_cb;
     mutex_unlock(&plumbum->lock);
     return res;
 }
@@ -568,8 +576,9 @@ void _event_ep0_cb(usbdev_ep_t *ep, usbdev_event_t event)
         msg_t msg = { .type = PLUMBUM_MSG_TYPE_EP_EVENT,
                       .content = { .ptr = ep} };
 
+        DEBUG("plumbum_ep: pid: %u\n", plumbum->pid);
         if (msg_send(&msg, plumbum->pid) <= 0) {
-            puts("plumbum_ep: possibly lost interrupt.");
+            puts("plumbum_ep0: possibly lost interrupt.");
         }
     }
     else {
@@ -635,7 +644,6 @@ void _event_ep0_cb(usbdev_ep_t *ep, usbdev_event_t event)
 /* USB generic endpoint callback */
 void _event_ep_cb(usbdev_ep_t *ep, usbdev_event_t event)
 {
-    puts("EP event");
     plumbum_t *plumbum = (plumbum_t *)ep->context;
     if (event == USBDEV_EVENT_ESR) {
         msg_t msg = { .type = PLUMBUM_MSG_TYPE_EP_EVENT,
@@ -653,6 +661,8 @@ void _event_ep_cb(usbdev_ep_t *ep, usbdev_event_t event)
                     if (iface) {
                         iface->handler->driver->event_handler(plumbum, iface->handler, PLUMBUM_MSG_TYPE_TR_COMPLETE, ep);
                     }
+                    else {
+                    }
                     if (ep->dir == USB_EP_DIR_OUT)
                     {
                         ep->driver->ready(ep, 0);
@@ -668,6 +678,7 @@ void _event_ep_cb(usbdev_ep_t *ep, usbdev_event_t event)
                 }
                 break;
             default:
+                puts("unhandled event");
                 break;
         }
     }

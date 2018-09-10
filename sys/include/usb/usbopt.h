@@ -84,6 +84,7 @@ typedef enum {
      */
     USBOPT_EP_STALL,
     USBOPT_EP_READY,
+    USBOPT_EP_AVAILABLE,
     /* expand list if required */
 } usbopt_ep_t;
 

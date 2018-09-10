@@ -83,7 +83,7 @@ typedef enum {
     /**
      * @brief Driver needs it's ISR handled
      */
-    USBDEV_EVENT_ESR,
+    USBDEV_EVENT_ESR = 1,
 
     /**
      * @brief Line reset occured
