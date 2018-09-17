@@ -1,0 +1,24 @@
+include ../Makefile.tests_common
+
+BOARD := nucleo-f446
+
+USEMODULE += ili9341
+USEMODULE += xtimer
+
+# set default device parameters in case they are undefined
+TEST_SPI ?= SPI_DEV\(0\)
+TEST_SPI_CS ?= GPIO_PIN\(PORT_A,9\)
+TEST_SPI_CLK ?= SPI_CLK_10MHZ
+TEST_PIN_DC ?= GPIO_PIN\(PORT_B,5\)
+TEST_PIN_RST ?= GPIO_PIN\(PORT_A,8\)
+
+# export parameters
+CFLAGS += -DTEST_SPI=$(TEST_SPI)
+CFLAGS += -DTEST_SPI_CS=$(TEST_SPI_CS)
+CFLAGS += -DTEST_SPI_CLK=$(TEST_SPI_CLK)
+CFLAGS += -DTEST_PIN_DC=$(TEST_PIN_DC)
+CFLAGS += -DTEST_PIN_RST=$(TEST_PIN_RST)
+
+DEVELHELP := 1
+
+include $(RIOTBASE)/Makefile.include
