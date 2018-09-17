@@ -1,0 +1,94 @@
+/*
+ * Copyright (C) 2018 Koen Zandberg
+ *
+ * This file is subject to the terms and conditions of the GNU Lesser
+ * General Public License v2.1. See the file LICENSE in the top level
+ * directory for more details.
+ */
+
+/**
+ * @defgroup    drivers_ili9341
+ * @ingroup     drivers_ili9341
+ *
+ * @brief
+ *
+ * @{
+ *
+ * @file
+ * @brief       Driver for ili941 display
+ *
+ * @author      Koen Zandberg <koen@bergzand.net>
+ */
+
+
+#ifndef ILI9341_H
+#define ILI9341_H
+
+#include "periph/spi.h"
+#include "periph/gpio.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef ILI9341_GVDD
+/**
+ * @brief ili9341 gvdd level.
+ *
+ * Default GVDD voltage of 4.8V
+ */
+#define ILI9341_GVDD    4800
+
+#endif /* ILI9341_GVDD */
+
+#ifndef ILI9341_VCOMH
+/**
+ * @brief ili9341 VCOMH voltage level.
+ *
+ * Default VCOMH voltage of 4.25V
+ */
+#define ILI9341_VCOMH   4250
+
+#endif /* ILI9341_VCOMH */
+
+#ifndef ILI9341_VCOML
+/**
+ * @brief ili9341 VCOML voltage level.
+ *
+ * Default VCOMH voltage of -2V
+ */
+#define ILI9341_VCOML   -2000
+
+#endif /* ILI9341_VCOML */
+
+
+/**
+ * @brief   Device initialization parameters
+ */
+typedef struct {
+    spi_t spi;	        /**< SPI device that the display is connected to */
+    spi_clk_t spi_clk;  /**< SPI clock speed to use */
+    gpio_t cs_pin;      /**< pin connected to the CHIP SELECT line */
+    gpio_t dc_pin;      /**< pin connected to the DC line */
+    gpio_t rst_pin;     /**< pin connected to the reset line */
+} ili9341_params_t;
+
+/**
+  * @brief   Device descriptor for a ili9341
+  */
+typedef struct {
+    ili9341_params_t params;          /**< I2C device that sensor is connected to */
+} ili9341_t;
+
+
+int ili9341_init(ili9341_t* dev, ili9341_params_t* prms);
+
+void ili9341_fill(ili9341_t* dev, uint16_t x1, uint16_t x2, uint16_t y1, uint16_t y2, uint16_t color);
+void ili9341_map(ili9341_t* dev, uint16_t x1, uint16_t x2, uint16_t y1, uint16_t y2, uint16_t *color);
+void ili9341_invert_on(ili9341_t* dev);
+void ili9341_invert_off(ili9341_t* dev);
+#ifdef __cplusplus
+}
+#endif
+#endif /* ILI9341_H */
+/** @} */
