@@ -7,12 +7,24 @@
  */
 
 /**
- * @ingroup sam0_common_usb
+ * @ingroup sam0_common
  * @{
  * @file
- * @brief   USB interface implementation for the sam0 device group
+ * @brief   USB peripheral implementation
  *
  * @author  Koen Zandberg <koen@bergzand.net>
+ *
+ * The SAM0 USB peripheral allows for 8 endpoints in both directions. Full speed
+ * operation is supported with USB 2.0 protocol.
+ *
+ * The peripheral requires a list of data structures to be allocated in the
+ * device RAM. One structure is required for every unidirectional endpoint. 16
+ * max in total.
+ *
+ * All endpoints support interrupt, bulk and isochronous transfers.
+ *
+ * Data to be transmitted and data received over USB is directly written to the
+ * device RAM by a built-in DMA master in the peripheral.
  * @}
  */
 #include <stdint.h>
@@ -20,43 +32,32 @@
 #include <errno.h>
 #include "cpu.h"
 #include "periph/gpio.h"
+#include "bitarithm.h"
+
 #include "usb/usbdev.h"
 #include "sam_usb.h"
-
-#include "bitarithm.h"
 
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
-/* TODO: removeme */
+/* TODO: move to init function */
 static sam0_common_usb_t *_usbdev;
 
-/* USB peripheral device descriptor banks, should be in memory somewhere */
+/* USB endpoint RAM structures */
 static UsbDeviceDescBank banks[16];
 
+/* usbdev endpoints */
 static usbdev_ep_t endpoints[16];
 
-static void _ep_address(usbdev_ep_t *ep);
-static void _ep_size(usbdev_ep_t *ep);
-static int _ep_unready(usbdev_ep_t *ep);
-
+void usbdev_ep_init(usbdev_ep_t *ep);
 static usbdev_ep_t *usbdev_new_ep(usbdev_t *dev, usb_ep_type_t type, usb_ep_dir_t dir, size_t buf_len);
 
-/* Forward declarations for endpoint functions */
-void usbdev_ep_init(usbdev_ep_t *ep);
 int usbdev_ep_get(usbdev_ep_t *ep, usbopt_ep_t opt, void *value, size_t max_len);
 int usbdev_ep_set(usbdev_ep_t *ep, usbopt_ep_t opt, const void *value, size_t value_len);
 int usbdev_ep_ready(usbdev_ep_t *ep, size_t len);
 void usbdev_ep_esr(usbdev_ep_t *ep);
 
-const usbdev_driver_t driver = {
-    .init = usbdev_init,
-    .new_ep = usbdev_new_ep,
-    .get = usbdev_get,
-    .set = usbdev_set,
-    .esr = usbdev_esr,
-};
-
+/* Endpoint driver struct */
 const usbdev_ep_driver_t driver_ep = {
     .init = usbdev_ep_init,
     .get = usbdev_ep_get,
@@ -64,6 +65,10 @@ const usbdev_ep_driver_t driver_ep = {
     .esr = usbdev_ep_esr,
     .ready = usbdev_ep_ready,
 };
+
+static void _ep_address(usbdev_ep_t *ep);
+static void _ep_size(usbdev_ep_t *ep);
+static int _ep_unready(usbdev_ep_t *ep);
 
 static inline unsigned _get_ep_num(unsigned num, usb_ep_dir_t dir)
 {
@@ -90,6 +95,7 @@ static inline void _disable_irq(void)
     USB->DEVICE.INTENCLR.reg = USB_DEVICE_INTENCLR_EORST;
 }
 
+/* Enable interrupt flags based on the direction of te endpoint */
 static void _enable_ep_irq(usbdev_ep_t *ep)
 {
     UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep->num];
@@ -112,13 +118,18 @@ static void _disable_ep_irq(usbdev_ep_t *ep)
 {
     UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep->num];
     if (ep->dir == USB_EP_DIR_OUT) {
-        ep_reg->EPINTENCLR.reg = USB_DEVICE_EPINTENCLR_TRCPT0 | USB_DEVICE_EPINTENCLR_TRFAIL0 | USB_DEVICE_EPINTENCLR_STALL0;
+        ep_reg->EPINTENCLR.reg = USB_DEVICE_EPINTENCLR_TRCPT0
+                               | USB_DEVICE_EPINTENCLR_TRFAIL0
+                               | USB_DEVICE_EPINTENCLR_STALL0;
         if (ep->num == 0) {
+            /* Only enable setup interrupts on endpoint 0 */
             ep_reg->EPINTENCLR.reg = USB_DEVICE_EPINTENCLR_RXSTP;
         }
     }
     else {
-        ep_reg->EPINTENCLR.reg = USB_DEVICE_EPINTENCLR_TRCPT1 | USB_DEVICE_EPINTENCLR_TRFAIL1 | USB_DEVICE_EPINTENCLR_STALL1;
+        ep_reg->EPINTENCLR.reg = USB_DEVICE_EPINTENCLR_TRCPT1
+                               | USB_DEVICE_EPINTENCLR_TRFAIL1
+                               | USB_DEVICE_EPINTENCLR_STALL1;
     }
 }
 
@@ -126,16 +137,22 @@ static bool _ep_out_flags_set(UsbDeviceEndpoint *ep_reg)
 {
     return ep_reg->EPINTFLAG.reg  &
            ep_reg->EPINTENSET.reg &
-           (USB_DEVICE_EPINTENSET_TRFAIL0 | USB_DEVICE_EPINTENSET_TRCPT0 | USB_DEVICE_EPINTENSET_RXSTP | USB_DEVICE_EPINTENSET_STALL0);
+           (USB_DEVICE_EPINTENSET_TRFAIL0 |
+            USB_DEVICE_EPINTENSET_TRCPT0  |
+            USB_DEVICE_EPINTENSET_RXSTP   |
+            USB_DEVICE_EPINTENSET_STALL0);
 }
 
 static bool _ep_in_flags_set(UsbDeviceEndpoint *ep_reg)
 {
     return ep_reg->EPINTFLAG.reg &
            ep_reg->EPINTENSET.reg &
-           (USB_DEVICE_EPINTENSET_TRFAIL1 | USB_DEVICE_EPINTENSET_TRCPT1 | USB_DEVICE_EPINTENSET_STALL1);
+           (USB_DEVICE_EPINTENSET_TRFAIL1 |
+            USB_DEVICE_EPINTENSET_TRCPT1  |
+            USB_DEVICE_EPINTENSET_STALL1);
 }
 
+/* Blocks until the usb device is synced between clock domains */
 static bool usb_enable_syncing(void)
 {
     if (USB->DEVICE.SYNCBUSY.reg & USB_SYNCBUSY_ENABLE) {
@@ -144,6 +161,7 @@ static bool usb_enable_syncing(void)
     return false;
 }
 
+/* Blocks until the usb device is synced between clock domains */
 static bool usb_swrst_syncing(void)
 {
     if (USB->DEVICE.SYNCBUSY.reg & USB_SYNCBUSY_SWRST) {
@@ -154,14 +172,15 @@ static bool usb_swrst_syncing(void)
 
 static usbdev_ep_t *usbdev_new_ep(usbdev_t *dev, usb_ep_type_t type, usb_ep_dir_t dir, size_t buf_len)
 {
+    sam0_common_usb_t *sam0_usbdev = (sam0_common_usb_t*)dev;
     /* The IP supports all types for all endpoints */
-    (void)dev;
     usbdev_ep_t *res = NULL;
     if (type == USB_EP_TYPE_CONTROL) {
         res = _get_ep(0, dir);
         res->num = 0;
     }
     else {
+        /* Find unused endpoint with matching direction */
         for (unsigned idx = 1; idx < 8; idx++) {
             usbdev_ep_t *ep = _get_ep(idx, dir);
             if (ep->type == USB_EP_TYPE_NONE) {
@@ -173,9 +192,10 @@ static usbdev_ep_t *usbdev_new_ep(usbdev_t *dev, usb_ep_type_t type, usb_ep_dir_
     }
     if (res) {
         res->dir = dir;
-        if (_usbdev->used + buf_len < SAM_USB_BUF_SPACE) {
-            res->buf = _usbdev->buffer + _usbdev->used;
-            _usbdev->used += buf_len;
+        /* Allocated a slice of buffer space */
+        if (sam_usbdev->used + buf_len < SAM_USB_BUF_SPACE) {
+            res->buf = sam_usbdev->buffer + sam_usbdev->used;
+            sam_usbdev->used += buf_len;
             res->len = buf_len;
             _ep_address(res);
             _ep_size(res);
@@ -190,6 +210,7 @@ static usbdev_ep_t *usbdev_new_ep(usbdev_t *dev, usb_ep_type_t type, usb_ep_dir_
     return res;
 }
 
+/* Power the USB peripheral and enable clocks */
 static inline void poweron(void)
 {
 #if defined(CPU_FAM_SAMD21)
@@ -235,7 +256,8 @@ void usbdev_init(usbdev_t *dev)
     USB->DEVICE.DESCADD.reg = (uint32_t)banks;
     USB->DEVICE.CTRLA.reg |= USB_CTRLA_ENABLE | USB_CTRLA_RUNSTDBY;
     while(usb_enable_syncing()) {}
-    /* Callibration values */
+
+    /* Callibration values (TODO: move to separate function) */
     USB->DEVICE.PADCAL.reg =
         USB_PADCAL_TRANSP((*(uint32_t*)USB_FUSES_TRANSP_ADDR >>
                             USB_FUSES_TRANSP_Pos)) |
@@ -252,18 +274,17 @@ void usbdev_init(usbdev_t *dev)
 
 void usb_attach(void)
 {
-    /* Datasheet is not clear whether device starts detached */
     USB->DEVICE.CTRLB.reg &= ~USB_DEVICE_CTRLB_DETACH;
 }
 
 void usb_detach(void)
 {
-    /* Datasheet is not clear whether device starts detached */
     USB->DEVICE.CTRLB.reg |= USB_DEVICE_CTRLB_DETACH;
 }
 
 void isr_usb(void)
 {
+    /* First check register if it is an endpoint interrupt */
     if (USB->DEVICE.EPINTSMRY.reg) {
         unsigned ep_num = bitarithm_lsb(USB->DEVICE.EPINTSMRY.reg);
         UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep_num];
@@ -365,6 +386,7 @@ static void _ep_disable(usbdev_ep_t *ep)
     }
 }
 
+/* Enable the endpoint by writing the type to the control register */
 static void _ep_enable(usbdev_ep_t *ep)
 {
     UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep->num];
@@ -396,16 +418,18 @@ static void _ep_enable(usbdev_ep_t *ep)
 
 void usbdev_esr(usbdev_t *dev)
 {
-    (void)dev;
+    sam0_common_usb_t *sam0_usbdev = (sam0_common_usb_t*)dev;
     if (USB->DEVICE.INTFLAG.reg) {
+        /* USB reset condition */
         if (USB->DEVICE.INTFLAG.bit.EORST) {
             /* Clear flag */
             USB->DEVICE.INTFLAG.reg = USB_DEVICE_INTFLAG_EORST;
+            /* Only reenable EP 0 */
             usbdev_ep_init(&endpoints[0]);
             _ep_enable(&endpoints[0]);
             usbdev_ep_init(&endpoints[1]);
             _ep_enable(&endpoints[1]);
-            _usbdev->usbdev.cb(&_usbdev->usbdev, USBDEV_EVENT_RESET);
+            sam0_usbdev->usbdev.cb(dev, USBDEV_EVENT_RESET);
         }
         /* Re-enable the USB IRQ */
         _enable_irq();
@@ -415,7 +439,7 @@ void usbdev_esr(usbdev_t *dev)
 
 static void _ep_address(usbdev_ep_t *ep)
 {
-    UsbDeviceDescBank *bank = &banks[_get_ep_num(ep->num, ep->dir)];
+    UsbDeviceDescBank *bank = &banks[_get_ep_num2(ep)];
     bank->ADDR.reg = (uint32_t)ep->buf;
 }
 
@@ -456,7 +480,7 @@ usbopt_enable_t _ep_get_stall(usbdev_ep_t *ep)
 
 static void _ep_size(usbdev_ep_t *ep)
 {
-    UsbDeviceDescBank *bank = &banks[_get_ep_num(ep->num, ep->dir)];
+    UsbDeviceDescBank *bank = &banks[_get_ep_num2(ep)];
     unsigned val = 0x00;
     switch(ep->len) {
         case 8:
@@ -496,7 +520,7 @@ void usbdev_ep_init(usbdev_ep_t *ep)
 
 size_t _ep_get_available(usbdev_ep_t *ep)
 {
-    UsbDeviceDescBank *bank = &banks[_get_ep_num(ep->num, ep->dir)];
+    UsbDeviceDescBank *bank = &banks[_get_ep_num2(ep)];
     return (size_t)bank->PCKSIZE.bit.BYTE_COUNT;
 
 }
@@ -571,6 +595,7 @@ int usbdev_ep_set(usbdev_ep_t *ep, usbopt_ep_t opt, const void *value, size_t va
     return res;
 }
 
+/* Mark endpoint as not ready */
 static int _ep_unready(usbdev_ep_t *ep)
 {
     UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep->num];
@@ -586,8 +611,9 @@ static int _ep_unready(usbdev_ep_t *ep)
 
 int usbdev_ep_ready(usbdev_ep_t *ep, size_t len)
 {
+    /* Clear stall flag */
     _ep_set_stall(ep, USBOPT_DISABLE);
-    UsbDeviceDescBank *bank = &banks[_get_ep_num(ep->num, ep->dir)];
+    UsbDeviceDescBank *bank = &banks[_get_ep_num2(ep)];
     UsbDeviceEndpoint *ep_reg = &USB->DEVICE.DeviceEndpoint[ep->num];
     if (ep->dir == USB_EP_DIR_IN) {
         bank->PCKSIZE.bit.BYTE_COUNT = len;
@@ -646,3 +672,11 @@ void usbdev_ep_esr(usbdev_ep_t *ep)
     }
     _enable_ep_irq(ep);
 }
+
+const usbdev_driver_t driver = {
+    .init = usbdev_init,
+    .new_ep = usbdev_new_ep,
+    .get = usbdev_get,
+    .set = usbdev_set,
+    .esr = usbdev_esr,
+};
