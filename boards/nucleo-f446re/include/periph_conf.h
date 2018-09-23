@@ -22,12 +22,43 @@
 #define PERIPH_CONF_H
 
 #include "periph_cpu.h"
-#include "f4/cfg_clock_180_8_1.h"
-#include "cfg_spi_divtable.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+ * @name    Clock settings
+ *
+ * @note    This is auto-generated from
+ *          `cpu/stm32_common/dist/clk_conf/clk_conf.c`
+ * @{
+ */
+/* give the target core clock (HCLK) frequency [in Hz],
+ * maximum: 180MHz */
+#define CLOCK_CORECLOCK     (64000000U)
+/* 0: no external high speed crystal available
+ * else: actual crystal frequency [in Hz] */
+#define CLOCK_HSE           (8000000U)
+/* 0: no external low speed crystal available,
+ * 1: external crystal available (always 32.768kHz) */
+#define CLOCK_LSE           (1U)
+/* peripheral clock setup */
+#define CLOCK_AHB_DIV       RCC_CFGR_HPRE_DIV1
+#define CLOCK_AHB           (CLOCK_CORECLOCK / 1)
+#define CLOCK_APB1_DIV      RCC_CFGR_PPRE1_DIV2     /* max 45MHz */
+#define CLOCK_APB1          (CLOCK_CORECLOCK / 2)
+#define CLOCK_APB2_DIV      RCC_CFGR_PPRE2_DIV1     /* max 90MHz */
+#define CLOCK_APB2          (CLOCK_CORECLOCK / 1)
+
+/* Main PLL factors */
+#define CLOCK_PLL_M          (4)
+#define CLOCK_PLL_N          (192)
+#define CLOCK_PLL_P          (6)
+#define CLOCK_PLL_Q          (8)
+/** @} */
+
+#include "cfg_spi_divtable.h"
 
 /**
  * @name   Timer configuration
