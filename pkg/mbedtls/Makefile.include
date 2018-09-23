@@ -1,0 +1,3 @@
+INCLUDES += -I$(RIOTBASE)/pkg/mbedtls/include
+INCLUDES += -I$(PKGDIRBASE)/mbedtls/include
+CFLAGS += -DMBEDTLS_NO_PLATFORM_ENTROPY
