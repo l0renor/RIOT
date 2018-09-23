@@ -247,6 +247,7 @@ int main(void)
     tstart = stacksz - thread_measure_stack_free(p->stack_start);
 #endif
 
+    /* MBEDTLS initialization */
 #ifdef MODULE_MBEDTLS
     mbedtls_ecdsa_init(&ctx_sign);
     mbedtls_ecdsa_init(&ctx_verify);
@@ -254,6 +255,7 @@ int main(void)
     mbedtls_ecp_gen_key(MBEDTLS_ECP_DP_SECP256R1, &ctx_sign, getrandom, NULL );
 #endif
 
+    /* Libhydrogen keygen */
 #ifdef MODULE_LIBHYDROGEN
     hydro_sign_keygen(&keypair);
 #endif
@@ -263,71 +265,91 @@ int main(void)
 #if  defined(MODULE_HACL) || defined(MODULE_TWEETNACL)
     memset(sm, '\0', SMLEN);
 #endif
-    /* Creating keypair ... */
+    /* Generic keypair creation... */
 #ifndef MODULE_MBEDTLS
 #ifndef MODULE_LIBHYDROGEN
     gen_keypair(sign_pk, sign_sk);
 #endif
 #endif
+    /* Measure stack */
 #ifdef DEVELHELP
     tbefore = stacksz - thread_measure_stack_free(p->stack_start);
 #endif
+    /* Measure time before */
     before = xtimer_now_usec();
 
-    /* Sign */
+    /* Generic Sign */
 #if  defined(MODULE_HACL) || defined(MODULE_TWEETNACL)
     crypto_sign(sm, &smlen, (const uint8_t *)message, sizeof(message), sign_sk);
+    /* Tinycrypt hash and sign */
 #elif defined(MODULE_TINYCRYPT)
     tc_sha256_init(&sha);
     tc_sha256_update(&sha, message, sizeof(message));
     tc_sha256_final(digest, &sha);
     uECC_sign(sign_sk, digest, 32, signature, &curve_secp256r1);
+    /* MBEDTLS hash and sign */
 #elif defined(MODULE_MBEDTLS)
     mbedtls_sha256_starts( &sha256_ctx, 0 );
     mbedtls_sha256_update( &sha256_ctx, message, sizeof( message ) );
     mbedtls_sha256_finish( &sha256_ctx, digest);
     mbedtls_ecdsa_write_signature(&ctx_sign, MBEDTLS_MD_SHA256, digest, sizeof(digest), signature, &sig_len, NULL, NULL);
+    /* C25519 sign */
 #elif defined(MODULE_C25519)
 	edsign_sign(signature, sign_pk, sign_sk, message, sizeof(message));
+    /* C25519 sign */
 #elif defined(MODULE_MONOCYPHER)
     crypto_sign(signature, sign_sk, sign_pk, message, sizeof(message));
+    /* QDSA sign */
 #elif defined(MODULE_QDSA)
     sign(sm, &smlen, message, sizeof(message), sign_pk, sign_sk);
+    /* libhydrogen sign */
 #elif defined(MODULE_LIBHYDROGEN)
     hydro_sign_create(signature, message, mlen, CONTEXT, keypair.sk);
 #endif
 #endif /* DO_SIGN */
+    /* Measure time after signing */
     middle = xtimer_now_usec();
 #ifdef DEVELHELP
+    /* Measure stack after signing */
     tmiddle = stacksz - thread_measure_stack_free(p->stack_start);
 #endif
     /* Verifying... */
 #if  defined(MODULE_HACL) || defined(MODULE_TWEETNACL)
     int res = crypto_sign_open(verify_result, &verify_result_len, sm, smlen, sign_pk);
 #elif defined(MODULE_TINYCRYPT)
+    /* Tinycrypt hash and verify */
     tc_sha256_init(&sha);
     tc_sha256_update(&sha, message, sizeof(message));
     tc_sha256_final(digest, &sha);
     int res = uECC_verify(sign_pk, digest, 32, signature, &curve_secp256r1);
 #elif defined(MODULE_MBEDTLS)
+    /* MBEDTLS hash and verify */
     mbedtls_sha256_starts( &sha256_ctx, 0 );
     mbedtls_sha256_update( &sha256_ctx, message, sizeof(message));
     mbedtls_sha256_finish( &sha256_ctx, digest);
     int res = mbedtls_ecdsa_read_signature( &ctx_verify, digest, sizeof(digest), signature, sig_len);
 #elif defined(MODULE_C25519)
+    /* C25519 verify */
     int res = edsign_verify(signature, sign_pk, message, sizeof(message));
 #elif defined(MODULE_MONOCYPHER)
+    /* Monocypher verify */
     int res = crypto_check(signature, sign_pk, message, sizeof(message));
 #elif defined(MODULE_QDSA)
+    /* QDSA verify */
     int res = verify(verify_result, 0, sm, smlen, sign_pk);
 #elif defined(MODULE_LIBHYDROGEN)
+    /* libhydrogen verify */
+    int res = verify(verify_result, 0, sm, smlen, sign_pk);
     int res = hydro_sign_verify(signature, message, sizeof(message), CONTEXT, keypair.pk);
 #endif
+    /* Measure time */
     after = xtimer_now_usec();
 #ifdef DEVELHELP
+    /* Measure stack */
     tafter = stacksz - thread_measure_stack_free(p->stack_start);
 #endif
 
+    /* Print results */
     printf("Res: %d, "
 #ifdef DO_SIGN
             "before: %" PRIu32
