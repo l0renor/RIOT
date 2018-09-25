@@ -51,6 +51,9 @@
 #include "sign.h"
 #elif MODULE_LIBHYDROGEN
 #include "hydrogen.h"
+#elif MODULE_WOLFSSL
+#include <wolfssl/wolfcrypt/settings.h>
+#include "wolfssl/wolfcrypt/ed25519.h"
 #endif
 
 
@@ -74,10 +77,11 @@
 #endif
 
 static uint8_t message[200];
-static volatile size_t mlen = sizeof(message);
+static size_t mlen = sizeof(message);
 
 #ifndef MODULE_MBEDTLS
 #ifndef MODULE_LIBHYDROGEN
+#ifndef MODULE_WOLFSSL
 #ifdef DO_SIGN
 static unsigned char sign_sk[SECRETKEYBYTES];
 static unsigned char sign_pk[PUBLICKEYBYTES];
@@ -87,6 +91,7 @@ static unsigned char sign_pk[] = {
     0x82, 0xc9, 0x31, 0x5c, 0x59, 0xb0, 0x3f, 0x92, 0xb9, 0xf1, 0xbb, 0xd4,
     0x01, 0x8f, 0x6d, 0x25, 0xfa, 0x6f, 0xfd, 0xf6
 };
+#endif
 #endif
 #endif
 #endif
@@ -125,15 +130,26 @@ static unsigned char sm[SMLEN] = {
 #endif /* DO_SIGN */
 #endif
 
-static uint32_t middle, after = 0;
+#ifdef MODULE_WOLFSSL
+static ed25519_key key;
+//static WC_RNG rng;
+#ifdef DO_SIGN
+static size_t sig_len;
+#endif
+static uint8_t signature[ED25519_SIG_SIZE];
+static uint8_t skey[ED25519_KEY_SIZE] = {0x13, 0x97, 0x3b, 0x7d, 0xaa, 0x43, 0xcb, 0x9f, 0x2f, 0x91, 0xe9, 0xa7, 0xb0, 0x46, 0x72, 0x66, 0xef, 0x04, 0x8b, 0x81, 0xf2, 0xfd, 0x5a, 0x9f, 0xc9, 0x96, 0x26, 0x70, 0xb0, 0x59, 0x27, 0xf5};
+static uint8_t pkey[ED25519_KEY_SIZE] = {0x32, 0xe7, 0x32, 0x31, 0x23, 0xd8, 0xee, 0x89, 0x85, 0x46, 0xa3, 0x90, 0x5b, 0x3a, 0x02, 0x4f, 0x20, 0xf1, 0xdf, 0x34, 0x6b, 0xa2, 0xac, 0x1c, 0x3f, 0xb6, 0xea, 0x9f, 0x55, 0xb8, 0x49, 0x11};
+#endif
+
+static volatile uint32_t middle, after = 0;
 #ifdef DEVELHELP
-static int tstart, tmiddle, tafter = 0;
-static int stacksz;
+static volatile int tstart, tmiddle, tafter = 0;
+static volatile int stacksz;
 #endif
 #ifdef DO_SIGN
-static uint32_t before = 0;
+static volatile uint32_t before = 0;
 #ifdef DEVELHELP
-static int tbefore = 0;
+static volatile int tbefore = 0;
 #endif
 #endif
 
@@ -150,17 +166,21 @@ static uint8_t signature[hydro_sign_BYTES];
 #endif
 
 #ifdef MODULE_MBEDTLS
+#ifdef DO_SIGN
 static uint8_t signature[MBEDTLS_ECDSA_MAX_LEN];
+#else
+static uint8_t signature[] = {0x30, 0x46, 0x02, 0x21, 0x00, 0x99, 0x1d, 0x15, 0x6b, 0xf9, 0xda, 0x23, 0x2e, 0xe6, 0x28, 0x16, 0xa7, 0x21, 0x13, 0x7e, 0xce, 0xf3, 0x12, 0x97, 0x8e, 0x88, 0x1e, 0xdd, 0x41, 0xda, 0xa2, 0x68, 0x36, 0xd2, 0xe5, 0x5c, 0xfd, 0x02, 0x21, 0x00, 0xae, 0x05, 0xcc, 0x0e, 0x2b, 0x79, 0x8f, 0x42, 0xf8, 0x86, 0x08, 0x43, 0x57, 0x4c, 0xb0, 0xdb, 0x1a, 0xb2, 0xf1, 0x22, 0x18, 0x22, 0xeb, 0x74, 0x44, 0x64, 0xce, 0x9a, 0xd2, 0xe1, 0xc3, 0x5e };
+#endif
 mbedtls_ecdsa_context ctx_sign, ctx_verify;
 mbedtls_sha256_context sha256_ctx;
 static uint8_t digest[32];
-static size_t sig_len;
+static size_t sig_len = sizeof(signature);
 
 static int getrandom(void *ctx, unsigned char* buf, size_t len)
 {
     (void)ctx;
     random_bytes((uint8_t*)buf, len);
-    return len;
+    return 0;
 }
 void mbedtls_platform_zeroize(void *buf, size_t len)
 {
@@ -201,6 +221,7 @@ long long unsigned int smlen = 0;
 
 #ifndef MODULE_MBEDTLS
 #ifndef MODULE_LIBHYDROGEN
+#ifndef MODULE_WOLFSSL
 #ifdef DO_SIGN
 static void gen_keypair(uint8_t *pk, uint8_t *sk)
 {
@@ -220,6 +241,7 @@ static void gen_keypair(uint8_t *pk, uint8_t *sk)
     keypair(pk, sk);
 #endif
 }
+#endif
 #endif
 #endif
 #endif
@@ -247,12 +269,35 @@ int main(void)
     tstart = stacksz - thread_measure_stack_free(p->stack_start);
 #endif
 
+#ifdef MODULE_WOLFSSL
+    wc_ed25519_init(&key);
+    wc_ed25519_import_private_key(skey, 32, pkey, 32, &key);
+//    wc_InitRng(&rng);
+//    int rres = wc_ed25519_make_key(&rng, ED25519_KEY_SIZE, &key);
+//    if (rres != 0) {
+//        printf("Failed generating keys: %d\n", rres);
+//    }
+//    else {
+//        unsigned int outlen = 32;
+//        wc_ed25519_export_private_only(&key, skey, &outlen);
+//        wc_ed25519_export_public(&key, pkey, &outlen);
+//        printf("skey: ");
+//        print_bstr(skey, 32);
+//        printf("\n");
+//        printf("pkey: ");
+//        print_bstr(pkey, 32);
+//        printf("\n");
+//    }
+#endif
+
     /* MBEDTLS initialization */
 #ifdef MODULE_MBEDTLS
     mbedtls_ecdsa_init(&ctx_sign);
     mbedtls_ecdsa_init(&ctx_verify);
     mbedtls_sha256_init(&sha256_ctx);
-    mbedtls_ecp_gen_key(MBEDTLS_ECP_DP_SECP256R1, &ctx_sign, getrandom, NULL );
+    if (mbedtls_ecdsa_genkey(&ctx_sign, MBEDTLS_ECP_DP_SECP256R1, getrandom, NULL) != 0) {
+        printf("keygen failed\n");
+    }
 #endif
 
     /* Libhydrogen keygen */
@@ -260,15 +305,17 @@ int main(void)
     hydro_sign_keygen(&keypair);
 #endif
 
-    memset(message, 0xaa, mlen);
+    memset((uint8_t*)message, 0xaa, mlen);
 #ifdef DO_SIGN
 #if  defined(MODULE_HACL) || defined(MODULE_TWEETNACL)
     memset(sm, '\0', SMLEN);
 #endif
     /* Generic keypair creation... */
+#ifndef MODULE_WOLFSSL
 #ifndef MODULE_MBEDTLS
 #ifndef MODULE_LIBHYDROGEN
     gen_keypair(sign_pk, sign_sk);
+#endif
 #endif
 #endif
     /* Measure stack */
@@ -280,33 +327,50 @@ int main(void)
 
     /* Generic Sign */
 #if  defined(MODULE_HACL) || defined(MODULE_TWEETNACL)
-    crypto_sign(sm, &smlen, (const uint8_t *)message, sizeof(message), sign_sk);
+    crypto_sign(sm, &smlen, (const uint8_t *)message, mlen, sign_sk);
     /* Tinycrypt hash and sign */
 #elif defined(MODULE_TINYCRYPT)
     tc_sha256_init(&sha);
-    tc_sha256_update(&sha, message, sizeof(message));
+    tc_sha256_update(&sha, message, mlen);
     tc_sha256_final(digest, &sha);
     uECC_sign(sign_sk, digest, 32, signature, &curve_secp256r1);
     /* MBEDTLS hash and sign */
 #elif defined(MODULE_MBEDTLS)
     mbedtls_sha256_starts( &sha256_ctx, 0 );
-    mbedtls_sha256_update( &sha256_ctx, message, sizeof( message ) );
+    mbedtls_sha256_update( &sha256_ctx, message, mlen );
     mbedtls_sha256_finish( &sha256_ctx, digest);
-    mbedtls_ecdsa_write_signature(&ctx_sign, MBEDTLS_MD_SHA256, digest, sizeof(digest), signature, &sig_len, NULL, NULL);
+    sig_len = MBEDTLS_ECDSA_MAX_LEN;
+    int sres = mbedtls_ecdsa_write_signature(&ctx_sign, MBEDTLS_MD_SHA256, digest, sizeof(digest), signature, &sig_len, NULL, NULL);
+    if (sres != 0) {
+        printf("Signing failed %d\n", sres);
+    }
+    else {
+        print_bstr(signature, sig_len);
+        printf("\n");
+    }
+
     /* C25519 sign */
 #elif defined(MODULE_C25519)
-	edsign_sign(signature, sign_pk, sign_sk, message, sizeof(message));
+	edsign_sign(signature, sign_pk, sign_sk, message, mlen);
     /* C25519 sign */
 #elif defined(MODULE_MONOCYPHER)
-    crypto_sign(signature, sign_sk, sign_pk, message, sizeof(message));
+    crypto_sign(signature, sign_sk, sign_pk, message, mlen);
     /* QDSA sign */
 #elif defined(MODULE_QDSA)
-    sign(sm, &smlen, message, sizeof(message), sign_pk, sign_sk);
+    sign(sm, &smlen, message, mlen, sign_pk, sign_sk);
     /* libhydrogen sign */
 #elif defined(MODULE_LIBHYDROGEN)
     hydro_sign_create(signature, message, mlen, CONTEXT, keypair.sk);
+    /* WolfSSL signing */
+#elif defined(MODULE_WOLFSSL)
+    sig_len = sizeof(signature);
+    int sres = wc_ed25519_sign_msg((uint8_t*)message, mlen, signature, &sig_len, &key);
+    if (sres != 0) {
+        printf("sign fail %d\n", sres);
+    }
 #endif
 #endif /* DO_SIGN */
+
     /* Measure time after signing */
     middle = xtimer_now_usec();
 #ifdef DEVELHELP
@@ -327,7 +391,7 @@ int main(void)
     mbedtls_sha256_starts( &sha256_ctx, 0 );
     mbedtls_sha256_update( &sha256_ctx, message, sizeof(message));
     mbedtls_sha256_finish( &sha256_ctx, digest);
-    int res = mbedtls_ecdsa_read_signature( &ctx_verify, digest, sizeof(digest), signature, sig_len);
+    int res = mbedtls_ecdsa_read_signature( &ctx_sign, digest, sizeof(digest), signature, sig_len);
 #elif defined(MODULE_C25519)
     /* C25519 verify */
     int res = edsign_verify(signature, sign_pk, message, sizeof(message));
@@ -341,6 +405,12 @@ int main(void)
     /* libhydrogen verify */
     int res = verify(verify_result, 0, sm, smlen, sign_pk);
     int res = hydro_sign_verify(signature, message, sizeof(message), CONTEXT, keypair.pk);
+#elif defined(MODULE_WOLFSSL)
+    int res;
+
+    if (wc_ed25519_verify_msg(signature, ED25519_SIG_SIZE, (uint8_t*)message, mlen, &res, &key) < 0) {
+        printf("Signature verify failed\n");
+    }
 #endif
     /* Measure time */
     after = xtimer_now_usec();

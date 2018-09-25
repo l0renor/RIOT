@@ -502,18 +502,18 @@
  *
  * Comment macros to disable the curve and functions for it
  */
-#define MBEDTLS_ECP_DP_SECP192R1_ENABLED
-#define MBEDTLS_ECP_DP_SECP224R1_ENABLED
+//#define MBEDTLS_ECP_DP_SECP192R1_ENABLED
+//#define MBEDTLS_ECP_DP_SECP224R1_ENABLED
 #define MBEDTLS_ECP_DP_SECP256R1_ENABLED
-#define MBEDTLS_ECP_DP_SECP384R1_ENABLED
-#define MBEDTLS_ECP_DP_SECP521R1_ENABLED
-#define MBEDTLS_ECP_DP_SECP192K1_ENABLED
-#define MBEDTLS_ECP_DP_SECP224K1_ENABLED
-#define MBEDTLS_ECP_DP_SECP256K1_ENABLED
-#define MBEDTLS_ECP_DP_BP256R1_ENABLED
-#define MBEDTLS_ECP_DP_BP384R1_ENABLED
-#define MBEDTLS_ECP_DP_BP512R1_ENABLED
-#define MBEDTLS_ECP_DP_CURVE25519_ENABLED
+//#define MBEDTLS_ECP_DP_SECP384R1_ENABLED
+//#define MBEDTLS_ECP_DP_SECP521R1_ENABLED
+//#define MBEDTLS_ECP_DP_SECP192K1_ENABLED
+//#define MBEDTLS_ECP_DP_SECP224K1_ENABLED
+//#define MBEDTLS_ECP_DP_SECP256K1_ENABLED
+//#define MBEDTLS_ECP_DP_BP256R1_ENABLED
+//#define MBEDTLS_ECP_DP_BP384R1_ENABLED
+//#define MBEDTLS_ECP_DP_BP512R1_ENABLED
+//#define MBEDTLS_ECP_DP_CURVE25519_ENABLED
 
 /**
  * \def MBEDTLS_ECP_NIST_OPTIM
@@ -657,7 +657,7 @@
  *      MBEDTLS_TLS_RSA_WITH_RC4_128_SHA
  *      MBEDTLS_TLS_RSA_WITH_RC4_128_MD5
  */
-#define MBEDTLS_KEY_EXCHANGE_RSA_ENABLED
+//#define MBEDTLS_KEY_EXCHANGE_RSA_ENABLED
 
 /**
  * \def MBEDTLS_KEY_EXCHANGE_DHE_RSA_ENABLED
@@ -708,7 +708,7 @@
  *      MBEDTLS_TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
  *      MBEDTLS_TLS_ECDHE_RSA_WITH_RC4_128_SHA
  */
-#define MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED
+//#define MBEDTLS_KEY_EXCHANGE_ECDHE_RSA_ENABLED
 
 /**
  * \def MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED
@@ -732,7 +732,7 @@
  *      MBEDTLS_TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA
  *      MBEDTLS_TLS_ECDHE_ECDSA_WITH_RC4_128_SHA
  */
-#define MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED
+//#define MBEDTLS_KEY_EXCHANGE_ECDHE_ECDSA_ENABLED
 
 /**
  * \def MBEDTLS_KEY_EXCHANGE_ECDH_ECDSA_ENABLED
@@ -2550,8 +2550,8 @@
  */
 
 /* MPI / BIGNUM options */
-//#define MBEDTLS_MPI_WINDOW_SIZE            6 /**< Maximum windows size used. */
-//#define MBEDTLS_MPI_MAX_SIZE            1024  /**< Maximum number of bytes for usable MPIs. */
+#define MBEDTLS_MPI_WINDOW_SIZE            2 /**< Maximum windows size used. */
+#define MBEDTLS_MPI_MAX_SIZE             128  /**< Maximum number of bytes for usable MPIs. */
 
 /* CTR_DRBG options */
 //#define MBEDTLS_CTR_DRBG_ENTROPY_LEN               48 /**< Amount of entropy used per seed by default (48 with SHA-512, 32 with SHA-256) */
@@ -2567,9 +2567,9 @@
 //#define MBEDTLS_HMAC_DRBG_MAX_SEED_INPUT      384 /**< Maximum size of (re)seed buffer */
 
 /* ECP options */
-//#define MBEDTLS_ECP_MAX_BITS             521 /**< Maximum bit size of groups */
-//#define MBEDTLS_ECP_WINDOW_SIZE            6 /**< Maximum window size used */
-//#define MBEDTLS_ECP_FIXED_POINT_OPTIM      1 /**< Enable fixed-point speed-up */
+#define MBEDTLS_ECP_MAX_BITS             256 /**< Maximum bit size of groups */
+#define MBEDTLS_ECP_WINDOW_SIZE            5 /**< Maximum window size used */
+#define MBEDTLS_ECP_FIXED_POINT_OPTIM      1 /**< Enable fixed-point speed-up */
 
 /* Entropy options */
 //#define MBEDTLS_ENTROPY_MAX_SOURCES                20 /**< Maximum number of sources supported */
