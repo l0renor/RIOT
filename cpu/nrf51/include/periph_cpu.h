@@ -41,6 +41,11 @@ extern "C" {
 /** @} */
 
 /**
+ * @brief   Number of GPIO line interrupts supported
+ */
+#define NRF_EXTI_NUM        (1U)
+
+/**
  * @brief   Override I2C speed settings
  * @{
  */

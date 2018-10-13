@@ -46,6 +46,11 @@ extern "C" {
 /** @} */
 
 /**
+ * @brief   Number of GPIO line interrupts supported
+ */
+#define NRF_EXTI_NUM        (8U)
+
+/**
  * @brief   The nRF52 family of CPUs provides a fixed number of 9 ADC lines
  */
 #define ADC_NUMOF           (9U)

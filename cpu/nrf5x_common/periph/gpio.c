@@ -38,7 +38,8 @@
 /**
  * @brief   Place to store the interrupt context
  */
-static gpio_isr_ctx_t exti_chan;
+static gpio_isr_ctx_t exti_chan[NRF_EXTI_NUM];
+static size_t chans_used = 0;
 #endif
 
 /**
@@ -112,44 +113,70 @@ void gpio_write(gpio_t pin, int value)
 int gpio_init_int(gpio_t pin, gpio_mode_t mode, gpio_flank_t flank,
                   gpio_cb_t cb, void *arg)
 {
+    if (chans_used >= NRF_EXTI_NUM) {
+        return -1;
+    }
     /* disable external interrupt in case one is active */
-    NRF_GPIOTE->INTENSET &= ~(GPIOTE_INTENSET_IN0_Msk);
+    NRF_GPIOTE->INTENSET &= ~(1 << chans_used);
     /* save callback */
-    exti_chan.cb = cb;
-    exti_chan.arg = arg;
+    exti_chan[chans_used].cb = cb;
+    exti_chan[chans_used].arg = arg;
     /* configure pin as input */
     gpio_init(pin, mode);
     /* set interrupt priority and enable global GPIOTE interrupt */
     NVIC_EnableIRQ(GPIOTE_IRQn);
     /* configure the GPIOTE channel: set even mode, pin and active flank */
-    NRF_GPIOTE->CONFIG[0] = (GPIOTE_CONFIG_MODE_Event |
-                             (pin << GPIOTE_CONFIG_PSEL_Pos) |
+    NRF_GPIOTE->CONFIG[chans_used] = (GPIOTE_CONFIG_MODE_Event |
+                                     (pin << GPIOTE_CONFIG_PSEL_Pos) |
 #ifdef CPU_MODEL_NRF52840XXAA
-                             ((pin & PORT_BIT) << 8) |
+                                     ((pin & PORT_BIT) << 8) |
 #endif
-                             (flank << GPIOTE_CONFIG_POLARITY_Pos));
+                                     (flank << GPIOTE_CONFIG_POLARITY_Pos));
     /* enable external interrupt */
-    NRF_GPIOTE->INTENSET |= GPIOTE_INTENSET_IN0_Msk;
+    NRF_GPIOTE->INTENSET |= (1 << chans_used);
+    chans_used++;
     return 0;
 }
 
 void gpio_irq_enable(gpio_t pin)
 {
-    (void) pin;
-    NRF_GPIOTE->INTENSET |= GPIOTE_INTENSET_IN0_Msk;
+    for (size_t i = 0; i < NRF_EXTI_NUM; i++) {
+        gpio_t config_pin = (NRF_GPIOTE->CONFIG[i] & (GPIOTE_CONFIG_PSEL_Msk
+#ifdef CPU_MODEL_NRF52840XXAA
+                            /* Only the nrf52840 has the port bit */
+                             | 0x2000
+#endif
+                            )) >> GPIOTE_CONFIG_PSEL_Pos;
+        if (config_pin == pin) {
+            NRF_GPIOTE->INTENSET |= (1 << i);
+            return;
+        }
+    }
 }
 
 void gpio_irq_disable(gpio_t pin)
 {
-    (void) pin;
-    NRF_GPIOTE->INTENCLR |= GPIOTE_INTENSET_IN0_Msk;
+    for (size_t i = 0; i < NRF_EXTI_NUM; i++) {
+        gpio_t config_pin = (NRF_GPIOTE->CONFIG[i] & (GPIOTE_CONFIG_PSEL_Msk
+#ifdef CPU_MODEL_NRF52840XXAA
+                            /* Only the nrf52840 has the port bit */
+                             | 0x2000
+#endif
+                            )) >> GPIOTE_CONFIG_PSEL_Pos;
+        if (config_pin == pin) {
+            NRF_GPIOTE->INTENCLR |= (1 << i);
+            return;
+        }
+    }
 }
 
 void isr_gpiote(void)
 {
-    if (NRF_GPIOTE->EVENTS_IN[0] == 1) {
-        NRF_GPIOTE->EVENTS_IN[0] = 0;
-        exti_chan.cb(exti_chan.arg);
+    for (size_t i = 0; i < chans_used; i++) {
+        if (NRF_GPIOTE->EVENTS_IN[i] == 1) {
+            NRF_GPIOTE->EVENTS_IN[i] = 0;
+            exti_chan[i].cb(exti_chan[i].arg);
+        }
     }
     cortexm_isr_end();
 }
