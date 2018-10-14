@@ -18,49 +18,24 @@
  * @}
  */
 
-#ifndef TEST_SPI
-#error "TEST_SPI not defined"
-#endif
-
-#ifndef TEST_SPI_CS
-#error "TEST_SPI_CS not defined"
-#endif
-
-#ifndef TEST_SPI_CLK
-#error "TEST_SPI_CLK not defined"
-#endif
-
-#ifndef TEST_PIN_DC
-#error "TEST_PIN_DC not defined"
-#endif
-#ifndef TEST_PIN_RST
-#error "TEST_PIN_RST not defined"
-#endif
-
 #include <stdio.h>
+#include "byteorder.h"
 #include "xtimer.h"
 #include "ili9341.h"
-#include "periph/spi.h"
-#include "byteorder.h"
+#include "ili9341_params.h"
+
 #include "riot_logo.h"
 
 int main(void)
 {
     ili9341_t dev;
-    ili9341_params_t params = {
-        .spi = TEST_SPI,
-        .spi_clk = TEST_SPI_CLK,
-        .cs_pin = TEST_SPI_CS,
-        .dc_pin = TEST_PIN_DC,
-        .rst_pin = TEST_PIN_RST
-    };
-
+    
     puts("ili9341 TFT display test application");
 
     /* initialize the sensor */
     printf("Initializing display...");
 
-    if (ili9341_init(&dev, &params) == 0) {
+    if (ili9341_init(&dev, &ili9341_params[0]) == 0) {
         puts("[OK]");
     }
     else {
