@@ -7,10 +7,10 @@
  */
 
 /**
- * @defgroup    drivers_ili9341
- * @ingroup     drivers_ili9341
+ * @defgroup    drivers_ili9341 ili9341 display driver
+ * @ingroup     drivers
  *
- * @brief
+ * @brief       ili9341 Display driver
  *
  * @{
  *
@@ -81,12 +81,53 @@ typedef struct {
 } ili9341_t;
 
 
-int ili9341_init(ili9341_t* dev, ili9341_params_t* prms);
+/**
+ * @brief   Setup an ili9341 display device
+ *
+ * @param[out]  dev     device descriptor
+ * @param[in]   params  parameters for device initialization
+ */
+int ili9341_init(ili9341_t* dev, const ili9341_params_t* prms);
 
+/**
+ * @brief   Fill a rectangular area with a single color
+ *
+ * @param[in]   dev     device descriptor
+ * @param[in]   x1      x coordinate of the first corner
+ * @param[in]   x2      x coordinate of the opposite corner
+ * @param[in]   y1      y coordinate of the first corner
+ * @param[in]   y2      y coordinate of the opposite corner
+ * @param[in]   color   single color to fill the area with
+ */
 void ili9341_fill(ili9341_t* dev, uint16_t x1, uint16_t x2, uint16_t y1, uint16_t y2, uint16_t color);
-void ili9341_map(ili9341_t* dev, uint16_t x1, uint16_t x2, uint16_t y1, uint16_t y2, uint16_t *color);
+
+/**
+ * @brief   Fill a rectangular area with an array of colors
+ *
+ * @param[in]   dev     device descriptor
+ * @param[in]   x1      x coordinate of the first corner
+ * @param[in]   x2      x coordinate of the opposite corner
+ * @param[in]   y1      y coordinate of the first corner
+ * @param[in]   y2      y coordinate of the opposite corner
+ * @param[in]   color   array of colors to fill the area with
+ */
+void ili9341_map(ili9341_t* dev, uint16_t x1, uint16_t x2, uint16_t y1,
+                 uint16_t y2, const uint16_t *color);
+
+/**
+ * @brief   Invert the display colors
+ *
+ * @param[in]   dev     device descriptor
+ */
 void ili9341_invert_on(ili9341_t* dev);
+
+/**
+ * @brief   Disable color inversion
+ *
+ * @param[in]   dev     device descriptor
+ */
 void ili9341_invert_off(ili9341_t* dev);
+
 #ifdef __cplusplus
 }
 #endif
