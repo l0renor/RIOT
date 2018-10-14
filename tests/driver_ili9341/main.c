@@ -41,6 +41,8 @@
 #include "xtimer.h"
 #include "ili9341.h"
 #include "periph/spi.h"
+#include "byteorder.h"
+#include "riot_logo.h"
 
 int main(void)
 {
@@ -53,7 +55,7 @@ int main(void)
         .rst_pin = TEST_PIN_RST
     };
 
-    puts("ili9341 TFT display test application\n");
+    puts("ili9341 TFT display test application");
 
     /* initialize the sensor */
     printf("Initializing display...");
@@ -66,22 +68,35 @@ int main(void)
         return 1;
     }
 
-    puts("ili9341 TFT display filling map\n");
+    puts("ili9341 TFT display filling map");
     ili9341_fill(&dev, 0, 319, 0, 239, 0x0000);
-    puts("ili9341 TFT display map filled\n");
+    puts("ili9341 TFT display map filled");
 
-    uint16_t i = 0x00ff;
-    ili9341_fill(&dev, 10, 59, 10, 109, i);
+    /* Fill square with blue */
+    puts("Drawing blue rectangle");
+    ili9341_fill(&dev, 10, 59, 10, 109, 0x001F);
     xtimer_sleep(1);
+
+    puts("Drawing green rectangle");
+    ili9341_fill(&dev, 10, 59, 10, 109, 0x07E0);
+    xtimer_sleep(1);
+
+    puts("Drawing red rectangle");
+    ili9341_fill(&dev, 10, 59, 10, 109, 0xf800);
+    xtimer_sleep(1);
+
     ili9341_invert_on(&dev);
-    puts("ili9341 TFT display inverted\n");
+    puts("ili9341 TFT display inverted");
     xtimer_sleep(1);
     ili9341_invert_off(&dev);
-    puts("ili9341 TFT display normal\n");
+    puts("ili9341 TFT display normal");
+
+    /* Make the same square black again */
+    ili9341_fill(&dev, 10, 59, 10, 109, 0x0000);
+
+    /* Approximate middle of the display */
+    ili9341_map(&dev, 95, 222, 85, 153, (const uint16_t *)picture);
     while (1) {
-        i+=0x0010;
-        ili9341_fill(&dev, 10, 59, 10, 109, i);
-        xtimer_usleep(10 * US_PER_MS);
     }
 
     return 0;
