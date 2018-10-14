@@ -31,23 +31,27 @@ extern "C" {
  * @{
  */
 #ifndef ILI9341_PARAM_SPI
-#define ILI9341_PARAM_SPI          (SPI_DEV(0))
+#define ILI9341_PARAM_SPI          SPI_DEV(0)
 #endif
 #ifndef ILI9341_PARAM_SPI_CLK
-#define ILI9341_PARAM_SPI_CLK      (SPI_CLK_5MHZ)
+#define ILI9341_PARAM_SPI_CLK      SPI_CLK_5MHZ
 #endif
 #ifndef ILI9341_PARAM_CS
-#define ILI9341_PARAM_CS           (GPIO_PIN(0, 0))
+#define ILI9341_PARAM_CS           GPIO_PIN(2, 2)
 #endif
-#ifndef ILI9341_PARAM_DX
-#define ILI9341_PARAM_DX           (GPIO_PIN(0, 1))
+#ifndef ILI9341_PARAM_DCX
+#define ILI9341_PARAM_DCX          GPIO_PIN(3, 13)
+#endif
+#ifndef ILI9341_PARAM_RST
+#define ILI9341_PARAM_RST          GPIO_UNDEF
 #endif
 
 #ifndef ILI9341_PARAMS
 #define ILI9341_PARAMS              { .spi = ILI9341_PARAM_SPI, \
                                       .spi_clk = ILI9341_PARAM_SPI_CLK, \
                                       .cs_pin = ILI9341_PARAM_CS, \
-                                      .dc_pin = ILI9341_PARAM_INT, \
+                                      .dcx_pin = ILI9341_PARAM_DCX, \
+                                      .rst_pin = ILI9341_PARAM_RST }
 #endif
 /**@}*/
 
@@ -58,5 +62,9 @@ static const ili9341_params_t ili9341_params[] =
 {
     ILI9341_PARAMS,
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ILI9341_PARAMS_H */

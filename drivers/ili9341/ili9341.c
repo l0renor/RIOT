@@ -30,9 +30,9 @@
 
 static void ili9341_cmd_start(ili9341_t *dev, uint8_t cmd, bool cont)
 {
-    gpio_clear(dev->params.dc_pin);
+    gpio_clear(dev->params.dcx_pin);
     spi_transfer_byte(dev->params.spi, dev->params.cs_pin, cont, cmd);
-    gpio_set(dev->params.dc_pin);
+    gpio_set(dev->params.dcx_pin);
 }
 
 /* datasheet page 178, table converted to equation.
@@ -97,8 +97,7 @@ int ili9341_init(ili9341_t *dev, const ili9341_params_t *prms)
 {
     memcpy(&dev->params, prms, sizeof(ili9341_params_t));
     uint8_t params[4] = { 0 };
-    gpio_init(dev->params.dc_pin, GPIO_OUT);
-    gpio_init(dev->params.rst_pin, GPIO_OUT);
+    gpio_init(dev->params.dcx_pin, GPIO_OUT);
     int res = spi_init_cs(dev->params.spi, dev->params.cs_pin);
     if (res != SPI_OK) {
         DEBUG("[ili9341] init: error initializing the CS pin [%i]\n", res);
@@ -106,11 +105,12 @@ int ili9341_init(ili9341_t *dev, const ili9341_params_t *prms)
     }
 
     if (dev->params.rst_pin != GPIO_UNDEF) {
+        gpio_init(dev->params.rst_pin, GPIO_OUT);
         gpio_clear(dev->params.rst_pin);
         xtimer_usleep(120 * US_PER_MS);
         gpio_set(dev->params.rst_pin);
-        xtimer_usleep(120 * US_PER_MS);
     }
+    xtimer_usleep(120 * US_PER_MS);
 
     /* Soft Reset */
     ili9341_write_cmd(dev, ILI9341_CMD_SWRESET, NULL, 0);

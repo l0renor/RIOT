@@ -85,7 +85,7 @@ typedef struct {
     spi_t spi;          /**< SPI device that the display is connected to */
     spi_clk_t spi_clk;  /**< SPI clock speed to use */
     gpio_t cs_pin;      /**< pin connected to the CHIP SELECT line */
-    gpio_t dc_pin;      /**< pin connected to the DC line */
+    gpio_t dcx_pin;     /**< pin connected to the DC line */
     gpio_t rst_pin;     /**< pin connected to the reset line */
 } ili9341_params_t;
 
