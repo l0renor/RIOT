@@ -28,7 +28,7 @@
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
-static void ili9341_cmd_start(ili9341_t* dev, uint8_t cmd, bool cont)
+static void ili9341_cmd_start(ili9341_t *dev, uint8_t cmd, bool cont)
 {
     gpio_clear(dev->params.dc_pin);
     spi_transfer_byte(dev->params.spi, dev->params.cs_pin, cont, cmd);
@@ -39,20 +39,20 @@ static void ili9341_cmd_start(ili9341_t* dev, uint8_t cmd, bool cont)
  * gvdd in 1mv increments: 4850 = 4.85V */
 static uint8_t ili9341_calc_pwrctl1(uint16_t gvdd)
 {
-    return (gvdd - 2850)/50;
+    return (gvdd - 2850) / 50;
 }
 
 static uint8_t ili9341_calc_vmh(uint16_t vcomh)
 {
-    return (vcomh - 2700)/25;
+    return (vcomh - 2700) / 25;
 }
 
 static uint8_t ili9341_calc_vml(int16_t vcoml)
 {
-    return (vcoml + 2500)/25;
+    return (vcoml + 2500) / 25;
 }
 
-void ili9341_write_cmd(ili9341_t* dev, uint8_t cmd, const uint8_t* params,
+void ili9341_write_cmd(ili9341_t *dev, uint8_t cmd, const uint8_t *params,
                        size_t plen)
 {
     spi_acquire(dev->params.spi, dev->params.cs_pin, SPI_MODE_0,
@@ -65,7 +65,7 @@ void ili9341_write_cmd(ili9341_t* dev, uint8_t cmd, const uint8_t* params,
     spi_release(dev->params.spi);
 }
 
-void ili9341_read_cmd(ili9341_t* dev, uint8_t cmd, uint8_t* params,
+void ili9341_read_cmd(ili9341_t *dev, uint8_t cmd, uint8_t *params,
                       size_t plen)
 {
     spi_acquire(dev->params.spi, dev->params.cs_pin, SPI_MODE_0,
@@ -80,21 +80,22 @@ void ili9341_read_cmd(ili9341_t* dev, uint8_t cmd, uint8_t* params,
     spi_release(dev->params.spi);
 }
 
-static void ili9341_set_area(ili9341_t* dev, uint16_t x1, uint16_t x2,
-                       uint16_t y1, uint16_t y2)
+static void ili9341_set_area(ili9341_t *dev, uint16_t x1, uint16_t x2,
+                             uint16_t y1, uint16_t y2)
 {
     be_uint16_t params[2];
+
     params[0] = byteorder_htons(x1);
     params[1] = byteorder_htons(x2);
-    ili9341_write_cmd(dev, ILI9341_CMD_CASET, (uint8_t*)params,
+    ili9341_write_cmd(dev, ILI9341_CMD_CASET, (uint8_t *)params,
                       sizeof(params));
     params[0] = byteorder_htons(y1);
     params[1] = byteorder_htons(y2);
-    ili9341_write_cmd(dev, ILI9341_CMD_PASET, (uint8_t*)params,
+    ili9341_write_cmd(dev, ILI9341_CMD_PASET, (uint8_t *)params,
                       sizeof(params));
 }
 
-int ili9341_init(ili9341_t* dev, const ili9341_params_t* prms)
+int ili9341_init(ili9341_t *dev, const ili9341_params_t *prms)
 {
     memcpy(&dev->params, prms, sizeof(ili9341_params_t));
     uint8_t params[4] = { 0 };
@@ -159,40 +160,40 @@ int ili9341_init(ili9341_t* dev, const ili9341_params_t* prms)
 
     /* Gamma correction */
     {
-        const uint8_t gamma_pos[] = {0x0F,
-                               0x31,
-                               0x2B,
-                               0x0C,
-                               0x0E,
-                               0x08,
-                               0x4E,
-                               0xF1,
-                               0x37,
-                               0x07,
-                               0x10,
-                               0x03,
-                               0x0E,
-                               0x09,
-                               0x00};
+        const uint8_t gamma_pos[] = { 0x0F,
+                                      0x31,
+                                      0x2B,
+                                      0x0C,
+                                      0x0E,
+                                      0x08,
+                                      0x4E,
+                                      0xF1,
+                                      0x37,
+                                      0x07,
+                                      0x10,
+                                      0x03,
+                                      0x0E,
+                                      0x09,
+                                      0x00 };
         ili9341_write_cmd(dev, ILI9341_CMD_PGAMCTRL, gamma_pos,
                           sizeof(gamma_pos));
     }
     {
-        const uint8_t gamma_neg[] = {0x00,
-                               0x0E,
-                               0x14,
-                               0x03,
-                               0x11,
-                               0x07,
-                               0x31,
-                               0xC1,
-                               0x48,
-                               0x08,
-                               0x0F,
-                               0x0C,
-                               0x31,
-                               0x36,
-                               0x0F};
+        const uint8_t gamma_neg[] = { 0x00,
+                                      0x0E,
+                                      0x14,
+                                      0x03,
+                                      0x11,
+                                      0x07,
+                                      0x31,
+                                      0xC1,
+                                      0x48,
+                                      0x08,
+                                      0x0F,
+                                      0x0C,
+                                      0x31,
+                                      0x36,
+                                      0x0F };
         ili9341_write_cmd(dev, ILI9341_CMD_NGAMCTRL, gamma_neg,
                           sizeof(gamma_neg));
 
@@ -204,7 +205,7 @@ int ili9341_init(ili9341_t* dev, const ili9341_params_t* prms)
     return 0;
 }
 
-void ili9341_fill(ili9341_t* dev, uint16_t x1, uint16_t x2, uint16_t y1,
+void ili9341_fill(ili9341_t *dev, uint16_t x1, uint16_t x2, uint16_t y1,
                   uint16_t y2, uint16_t color)
 {
     /* Send fill area to the display */
@@ -213,7 +214,7 @@ void ili9341_fill(ili9341_t* dev, uint16_t x1, uint16_t x2, uint16_t y1,
     /* Calculate number of pixels */
     int32_t pix = (x2 - x1 + 1) * (y2 - y1 + 1);
     DEBUG("[ili9341]: Write x1: %d, x2: %d, y1: %d, y2: %d. Num pixels: %ld\n",
-          x1,x2,y1,y2,pix);
+          x1, x2, y1, y2, pix);
 
     /* Memory access command */
     spi_acquire(dev->params.spi, dev->params.cs_pin, SPI_MODE_0,
@@ -221,16 +222,16 @@ void ili9341_fill(ili9341_t* dev, uint16_t x1, uint16_t x2, uint16_t y1,
 
     ili9341_cmd_start(dev, ILI9341_CMD_RAMWR, true);
 
-    for(int i = 0; i < (pix-1); i++) {
+    for (int i = 0; i < (pix - 1); i++) {
         spi_transfer_bytes(dev->params.spi, dev->params.cs_pin, true,
-                           (uint8_t*)&color, NULL, sizeof(color));
+                           (uint8_t *)&color, NULL, sizeof(color));
     }
     spi_transfer_bytes(dev->params.spi, dev->params.cs_pin, false,
-                       (uint8_t*)&color, NULL, 2);
+                       (uint8_t *)&color, NULL, 2);
     spi_release(dev->params.spi);
 }
 
-void ili9341_map(ili9341_t* dev, uint16_t x1, uint16_t x2,
+void ili9341_map(ili9341_t *dev, uint16_t x1, uint16_t x2,
                  uint16_t y1, uint16_t y2, const uint16_t *color)
 {
     int32_t num_pix = (x2 - x1 + 1) * (y2 - y1 + 1);
@@ -243,21 +244,21 @@ void ili9341_map(ili9341_t* dev, uint16_t x1, uint16_t x2,
                 dev->params.spi_clk);
     ili9341_cmd_start(dev, ILI9341_CMD_RAMWR, true);
     spi_transfer_bytes(dev->params.spi, dev->params.cs_pin, true,
-                       (const uint8_t*)color, NULL, num_pix * 2);
+                       (const uint8_t *)color, NULL, num_pix * 2);
     spi_release(dev->params.spi);
 }
 
-void ili9341_invert_on(ili9341_t* dev)
+void ili9341_invert_on(ili9341_t *dev)
 {
     ili9341_write_cmd(dev, ILI9341_CMD_DINVON, NULL, 0);
 }
 
-void ili9341_invert_off(ili9341_t* dev)
+void ili9341_invert_off(ili9341_t *dev)
 {
     ili9341_write_cmd(dev, ILI9341_CMD_DINVOFF, NULL, 0);
 }
 
-void ili9341_set_brightness(ili9341_t* dev, uint8_t brightness)
+void ili9341_set_brightness(ili9341_t *dev, uint8_t brightness)
 {
     ili9341_write_cmd(dev, ILI9341_CMD_WRDISBV, &brightness, 1);
     uint8_t param = 0x26;

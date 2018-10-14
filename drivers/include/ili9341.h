@@ -66,7 +66,7 @@ extern "C" {
  * @brief   Device initialization parameters
  */
 typedef struct {
-    spi_t spi;	        /**< SPI device that the display is connected to */
+    spi_t spi;          /**< SPI device that the display is connected to */
     spi_clk_t spi_clk;  /**< SPI clock speed to use */
     gpio_t cs_pin;      /**< pin connected to the CHIP SELECT line */
     gpio_t dc_pin;      /**< pin connected to the DC line */
@@ -74,8 +74,8 @@ typedef struct {
 } ili9341_params_t;
 
 /**
-  * @brief   Device descriptor for a ili9341
-  */
+ * @brief   Device descriptor for a ili9341
+ */
 typedef struct {
     ili9341_params_t params;          /**< I2C device that sensor is connected to */
 } ili9341_t;
@@ -87,7 +87,7 @@ typedef struct {
  * @param[out]  dev     device descriptor
  * @param[in]   params  parameters for device initialization
  */
-int ili9341_init(ili9341_t* dev, const ili9341_params_t* prms);
+int ili9341_init(ili9341_t *dev, const ili9341_params_t *prms);
 
 /**
  * @brief   Fill a rectangular area with a single color
@@ -99,7 +99,7 @@ int ili9341_init(ili9341_t* dev, const ili9341_params_t* prms);
  * @param[in]   y2      y coordinate of the opposite corner
  * @param[in]   color   single color to fill the area with
  */
-void ili9341_fill(ili9341_t* dev, uint16_t x1, uint16_t x2, uint16_t y1, uint16_t y2, uint16_t color);
+void ili9341_fill(ili9341_t *dev, uint16_t x1, uint16_t x2, uint16_t y1, uint16_t y2, uint16_t color);
 
 /**
  * @brief   Fill a rectangular area with an array of colors
@@ -111,7 +111,7 @@ void ili9341_fill(ili9341_t* dev, uint16_t x1, uint16_t x2, uint16_t y1, uint16_
  * @param[in]   y2      y coordinate of the opposite corner
  * @param[in]   color   array of colors to fill the area with
  */
-void ili9341_map(ili9341_t* dev, uint16_t x1, uint16_t x2, uint16_t y1,
+void ili9341_map(ili9341_t *dev, uint16_t x1, uint16_t x2, uint16_t y1,
                  uint16_t y2, const uint16_t *color);
 
 /**
@@ -119,14 +119,14 @@ void ili9341_map(ili9341_t* dev, uint16_t x1, uint16_t x2, uint16_t y1,
  *
  * @param[in]   dev     device descriptor
  */
-void ili9341_invert_on(ili9341_t* dev);
+void ili9341_invert_on(ili9341_t *dev);
 
 /**
  * @brief   Disable color inversion
  *
  * @param[in]   dev     device descriptor
  */
-void ili9341_invert_off(ili9341_t* dev);
+void ili9341_invert_off(ili9341_t *dev);
 
 #ifdef __cplusplus
 }
