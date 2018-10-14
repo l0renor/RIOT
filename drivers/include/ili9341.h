@@ -18,6 +18,15 @@
  * @brief       Driver for ili941 display
  *
  * @author      Koen Zandberg <koen@bergzand.net>
+ *
+ * The ILI9341 is a generic display driver for small RGB displays. The driver
+ * implemented here operates over SPI to communicate with the device.
+ *
+ * The device requires colors to be send in big endian RGB-565 format. The
+ * @ref ILI9341_LE_MODE compile time option can switch this, but only use this
+ * when strictly necessary. This option will slow down the driver as it
+ * certainly can't use DMA anymore, every short has to be converted before
+ * transfer.
  */
 
 
@@ -61,6 +70,13 @@ extern "C" {
 
 #endif /* ILI9341_VCOML */
 
+#ifndef ILI9341_LE_MODE
+/**
+ * @brief Compile time switch to change the driver to convert little endian
+ *        colors to big endian.
+ */
+#define ILI9341_LE_MODE     (0)
+#endif
 
 /**
  * @brief   Device initialization parameters
@@ -113,6 +129,29 @@ void ili9341_fill(ili9341_t *dev, uint16_t x1, uint16_t x2, uint16_t y1, uint16_
  */
 void ili9341_map(ili9341_t *dev, uint16_t x1, uint16_t x2, uint16_t y1,
                  uint16_t y2, const uint16_t *color);
+
+/**
+ * @brief   Raw write command
+ *
+ * @param[in]   dev     device descriptor
+ * @param[in]   cmd     command
+ * @param[in]   data    data from the device
+ * @param[in]   len     length of the returned data
+ */
+void ili9341_write_cmd(ili9341_t *dev, uint8_t cmd, const uint8_t *data,
+                       size_t len);
+
+/**
+ * @brief   Raw read command
+ *
+ * @pre         len > 0
+ *
+ * @param[in]   dev     device descriptor
+ * @param[in]   cmd     command
+ * @param[out]  data    data from the device
+ * @param[in]   len     length of the returned data
+ */
+void ili9341_read_cmd(ili9341_t *dev, uint8_t cmd, uint8_t *data, size_t len);
 
 /**
  * @brief   Invert the display colors

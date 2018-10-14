@@ -32,6 +32,7 @@ extern "C" {
  * @{
  */
 #define ILI9341_CMD_SWRESET         0x01    /**< Software reset */
+#define ILI9341_CMD_RDDIDIF         0x04    /**< Read display ID */
 #define ILI9341_CMD_SPLIN           0x10    /**< Enter sleep mode */
 #define ILI9341_CMD_SLPOUT          0x11    /**< Sleep out */
 #define ILI9341_CMD_DINVOFF         0x20    /**< Display inversion off */
