@@ -1,16 +1,16 @@
 include ../Makefile.tests_common
 
-BOARD := nucleo-f446
+BOARD := nucleo-f401re
 
 USEMODULE += ili9341
 USEMODULE += xtimer
 
 # set default device parameters in case they are undefined
 TEST_SPI ?= SPI_DEV\(0\)
-TEST_SPI_CS ?= GPIO_PIN\(PORT_A,9\)
+TEST_SPI_CS ?= GPIO_PIN\(PORT_B,6\)
 TEST_SPI_CLK ?= SPI_CLK_10MHZ
-TEST_PIN_DC ?= GPIO_PIN\(PORT_B,5\)
-TEST_PIN_RST ?= GPIO_PIN\(PORT_A,8\)
+TEST_PIN_DC ?= GPIO_PIN\(PORT_C,7\)
+TEST_PIN_RST ?= GPIO_PIN\(PORT_A,9\)
 
 # export parameters
 CFLAGS += -DTEST_SPI=$(TEST_SPI)
