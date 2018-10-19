@@ -22,10 +22,12 @@
 #include "picocbor.h"
 #include "byteorder.h"
 
+#define ENABLE_DEBUG    (0)
+#include "debug.h"
 size_t picocbor_fmt_bool(uint8_t *buf, bool content)
 {
-    uint8_t value = content ? PICOCBOR_SIMPLE_TRUE : PICOCBOR_SIMPLE_FALSE;
-    *buf = PICOCBOR_TYPE_FLOAT | value;
+    *buf = PICOCBOR_TYPE_FLOAT | (content ? PICOCBOR_SIMPLE_TRUE 
+                                          : PICOCBOR_SIMPLE_FALSE);
     return 1;
 }
 
@@ -62,7 +64,8 @@ size_t picocbor_fmt_uint(uint8_t *buf, uint32_t num)
 size_t picocbor_fmt_int(uint8_t *buf, int32_t num)
 {
     if (num < 0) {
-        num = abs(num) - 1;
+        /* Always negative at this point */
+        num = -1 * (num + 1);
         return _fmt_uint32(buf, num, PICOCBOR_TYPE_NINT);
     }
     else {
@@ -99,3 +102,74 @@ size_t picocbor_fmt_array(uint8_t *buf, size_t len)
 {
     return _fmt_uint32(buf, (uint32_t)len, PICOCBOR_TYPE_ARR);
 }
+
+size_t picocbor_fmt_map(uint8_t *buf, size_t len)
+{
+    return _fmt_uint32(buf, (uint32_t)len, PICOCBOR_TYPE_MAP);
+}
+
+size_t picocbor_fmt_array_indefinite(uint8_t *buf)
+{
+    *buf = PICOCBOR_TYPE_ARR | PICOCBOR_SIZE_INDEFINITE;
+    return 1;
+}
+
+size_t picocbor_fmt_map_indefinite(uint8_t *buf)
+{
+    *buf = PICOCBOR_TYPE_ARR | PICOCBOR_SIZE_INDEFINITE;
+    return 1;
+}
+
+size_t picocbor_fmt_end_indefinite(uint8_t *buf)
+{
+    /* End is marked with float major and indefinite minor number */
+    *buf = PICOCBOR_TYPE_FLOAT | PICOCBOR_SIZE_INDEFINITE;
+    return 1;
+}
+
+size_t picocbor_fmt_null(uint8_t *buf)
+{
+    *buf = PICOCBOR_TYPE_FLOAT | PICOCBOR_SIMPLE_NULL;
+    return 1;
+}
+
+#ifdef MODULE_PICOCBOR_FLOAT
+#define _FLOAT_EXP_OFFSET   127U
+#define _HALF_EXP_OFFSET     15U
+size_t picocbor_fmt_float(uint8_t *buf, float num)
+{
+    /* Check if lower 13 bits of fraction are zero, if so we might be able to
+     * convert without precision loss */
+    uint32_t *unum = (uint32_t*)&num;
+    DEBUG("[picocbor] Number is %lx\n", *unum);
+    if ( ! (*unum & 0x1FFF) ) {
+        DEBUG("[picocbor] Attempting half float conversion\n");
+        do {
+            uint8_t exp = (*unum >> 23) & 0xff;
+            /* Copy sign bit */
+            uint16_t half = (*unum >> 16) & 0x8000;
+            if (exp > 15 + _FLOAT_EXP_OFFSET ||
+                exp < -14 + _FLOAT_EXP_OFFSET) {
+                break;
+            }
+            /* TODO: check zero value */
+            /* Shift offset */
+            exp = exp + _HALF_EXP_OFFSET - _FLOAT_EXP_OFFSET;
+            /* Add exp */
+            half |= exp << 10;
+            half |=  (*unum >> 13) & 0x03FF;
+            *buf++ = PICOCBOR_TYPE_FLOAT | PICOCBOR_SIZE_SHORT;
+            *buf++ = ((half & 0xff00) >> 8) & 0xff;
+            *buf =  half & 0x00ff;
+            return 3;
+        }
+        while(0);
+    }
+    /* normal float */
+    *buf++ = PICOCBOR_TYPE_FLOAT | PICOCBOR_SIZE_WORD;
+    uint32_t bnum = htonl(*unum);
+    memcpy(buf, &bnum, sizeof(bnum));
+    return 5;
+}
+#endif
+

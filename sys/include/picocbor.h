@@ -21,6 +21,7 @@
  *  - Maps including indefinite length maps
  * Not included:
  *  - Floats
+ *  - 64 bits datatype support
  *  - Date and time
  *  - Sanity checks and verifications
  *  - Decoding
@@ -80,7 +81,9 @@
 #define PICOCBOR_SIZE_BYTE          24U
 #define PICOCBOR_SIZE_SHORT         25U
 #define PICOCBOR_SIZE_WORD          26U
-#define PICOCBOR_SIZE_DOUBLE        27
+#define PICOCBOR_SIZE_INDEFINITE    31U
+/** @} */
+
 
 /**
  * @brief Write a CBOR boolean value into a buffer
@@ -116,6 +119,44 @@ size_t picocbor_fmt_int(uint8_t *buf, int32_t num);
 
 size_t picocbor_fmt_bstr(uint8_t *buf, size_t len);
 size_t picocbor_fmt_tstr(uint8_t *buf, size_t len);
+
+/**
+ * @brief Write an array indicator with @ref len items
+ *
+ * @param[in]   buf     buffer to write into
+ * @param[in]   len     Number of items in the array
+ *
+ * @return              Number of bytes written
+ */
 size_t picocbor_fmt_array(uint8_t *buf, size_t len);
 
+/**
+ * @brief Write a map indicator with @ref len pairs
+ *
+ * @param[in]   buf     buffer to write into
+ * @param[in]   len     Number of pairs in the map
+ *
+ * @return              Number of bytes written
+ */
+size_t picocbor_fmt_map(uint8_t *buf, size_t len);
+
+/**
+ * @brief Write an indefinite-length array indicator
+ *
+ * @param[in]   buf     buffer to write into
+ *
+ * @return              Number of bytes written
+ */
+size_t picocbor_fmt_array_indefinite(uint8_t *buf);
+
+/**
+ * @brief Write an indefinite-length map indicator
+ *
+ * @param[in]   buf     buffer to write the map 
+ *
+ * @return              Number of bytes written
+ */
+size_t picocbor_fmt_map_indefinite(uint8_t *buf);
+
+size_t picocbor_fmt_float(uint8_t *buf, float num);
 #endif /* PICOCBOR_H */
