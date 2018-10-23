@@ -730,6 +730,10 @@ ifneq (,$(filter nanocoap_%,$(USEMODULE)))
   USEMODULE += nanocoap
 endif
 
+ifneq (,$(filter nanocoap_auto_etag%,$(USEMODULE)))
+  USEMODULE += checksum
+endif
+
 ifneq (,$(filter fatfs_vfs,$(USEMODULE)))
   USEPKG += fatfs
   USEMODULE += vfs

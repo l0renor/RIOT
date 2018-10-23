@@ -1,3 +1,5 @@
 SRC := nanocoap.c
-SUBMODULES := 1
+ifneq (,$(filter nanocoap_sock,$(USEMODULE)))
+  SRC += sock.c
+endif
 include $(RIOTBASE)/Makefile.base

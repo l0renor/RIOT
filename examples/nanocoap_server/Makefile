@@ -25,6 +25,7 @@ USEMODULE += gnrc_sock_udp
 USEMODULE += gnrc_icmpv6_echo
 
 USEMODULE += nanocoap_sock
+USEMODULE += nanocoap_auto_etag
 
 # include this for nicely formatting the returned internal value
 USEMODULE += fmt

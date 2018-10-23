@@ -27,6 +27,10 @@
 
 #include "net/nanocoap.h"
 
+#ifdef MODULE_NANOCOAP_AUTO_ETAG
+#include "checksum/fletcher16.h"
+#endif
+
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
@@ -639,6 +643,20 @@ size_t coap_opt_put_block2(uint8_t *buf, uint16_t lastonum, coap_block_slicer_t 
     return coap_put_option_block(buf, lastonum, blknum, szx, more, COAP_OPT_BLOCK2);
 }
 
+size_t coap_opt_put_auto_etag(uint8_t *buf, uint16_t lastonum, coap_block_slicer_t *slicer)
+{
+#ifdef MODULE_NANOCOAP_AUTO_ETAG
+    slicer->etagopt = buf;
+    uint16_t etag = fletcher16_finish(&slicer->fletcher);
+    return coap_put_option(buf, lastonum, COAP_OPT_ETAG, (uint8_t *)&etag, sizeof(etag));
+#else
+    (void)buf;
+    (void)lastonum;
+    (void)slicer;
+    return 0;
+#endif
+}
+
 size_t coap_opt_put_string(uint8_t *buf, uint16_t lastonum, uint16_t optnum,
                            const char *string, char separator)
 {
@@ -773,6 +791,10 @@ void coap_block2_init(coap_pkt_t *pkt, coap_block_slicer_t *slicer)
     slicer->start = blknum * coap_szx2size(szx);
     slicer->end = slicer->start + coap_szx2size(szx);
     slicer->cur = 0;
+#ifdef MODULE_NANOCOAP_AUTO_ETAG
+    slicer->etagopt = NULL;
+    fletcher16_init(&slicer->fletcher);
+#endif
 }
 
 void coap_block2_finish(coap_block_slicer_t *slicer)
@@ -789,6 +811,22 @@ void coap_block2_finish(coap_block_slicer_t *slicer)
     coap_opt_put_block2(slicer->opt, COAP_OPT_BLOCK2 - delta, slicer, more);
 }
 
+void coap_etag_finish(coap_block_slicer_t *slicer)
+{
+#ifdef MODULE_NANOCOAP_AUTO_ETAG
+    if (slicer->etagopt) {
+        /* The third parameter for _decode_value() points to the end of the header.
+         * We don't know this position, but we know we can read the option because
+         * it's already in the buffer. So just point past the option. */
+        uint8_t *pos = slicer->etagopt + 1;
+        uint16_t delta = _decode_value(*slicer->etagopt >> 4, &pos, slicer->etagopt + 3);
+        coap_opt_put_auto_etag(slicer->etagopt, COAP_OPT_ETAG - delta, slicer);
+    }
+#else
+    (void)slicer;
+#endif
+}
+
 ssize_t coap_block2_build_reply(coap_pkt_t *pkt, unsigned code,
                                 uint8_t *rbuf, unsigned rlen, unsigned payload_len,
                                 coap_block_slicer_t *slicer)
@@ -798,11 +836,15 @@ ssize_t coap_block2_build_reply(coap_pkt_t *pkt, unsigned code,
         return coap_build_reply(pkt, COAP_CODE_BAD_OPTION, rbuf, rlen, 0);
     }
     coap_block2_finish(slicer);
+    coap_etag_finish(slicer);
     return coap_build_reply(pkt, code, rbuf, rlen, payload_len);
 }
 
 size_t coap_blockwise_put_char(coap_block_slicer_t *slicer, uint8_t *bufpos, char c)
 {
+#ifdef MODULE_NANOCOAP_AUTO_ETAG
+    fletcher16_update(&slicer->fletcher, (uint8_t*)&c, 1);
+#endif
     /* Only copy the char if it is within the window */
     if ((slicer->start <= slicer->cur) && (slicer->cur < slicer->end)) {
         *bufpos = c;
@@ -817,6 +859,9 @@ size_t coap_blockwise_put_bytes(coap_block_slicer_t *slicer, uint8_t *bufpos,
                                 const uint8_t *c, size_t len)
 {
     size_t str_len = 0;    /* Length of the string to copy */
+#ifdef MODULE_NANOCOAP_AUTO_ETAG
+    fletcher16_update(&slicer->fletcher, c, len);
+#endif
 
     /* Calculate start offset of the supplied string */
     size_t str_offset = (slicer->start > slicer->cur)
@@ -850,7 +895,12 @@ ssize_t coap_well_known_core_default_handler(coap_pkt_t *pkt, uint8_t *buf, \
     coap_block2_init(pkt, &slicer);
     uint8_t *payload = buf + coap_get_total_hdr_len(pkt);
     uint8_t *bufpos = payload;
+#ifdef MODULE_NANOCOAP_AUTO_ETAG
+    bufpos += coap_opt_put_auto_etag(bufpos, 0, &slicer);
+    bufpos += coap_put_option_ct(bufpos, COAP_OPT_ETAG, COAP_FORMAT_LINK);
+#else
     bufpos += coap_put_option_ct(bufpos, 0, COAP_FORMAT_LINK);
+#endif
     bufpos += coap_opt_put_block2(bufpos, COAP_OPT_CONTENT_FORMAT, &slicer, 1);
 
     *bufpos++ = 0xff;

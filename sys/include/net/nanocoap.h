@@ -153,6 +153,9 @@
 #ifdef RIOT_VERSION
 #include "byteorder.h"
 #include "net/coap.h"
+#ifdef MODULE_NANOCOAP_AUTO_ETAG
+#include "checksum/fletcher16.h"
+#endif
 #else
 #include "coap.h"
 #include <arpa/inet.h>
@@ -274,6 +277,10 @@ typedef struct {
     size_t end;                     /**< End offset of the current block    */
     size_t cur;                     /**< Offset of the generated content    */
     uint8_t *opt;                   /**< Pointer to the placed option       */
+#ifdef MODULE_NANOCOAP_AUTO_ETAG
+    fletcher16_ctx_t fletcher;      /**< Current fletcher state             */
+    uint8_t *etagopt;
+#endif
 } coap_block_slicer_t;
 
 /**
@@ -648,6 +655,20 @@ ssize_t coap_opt_finish(coap_pkt_t *pkt, uint16_t flags);
  * @returns     amount of bytes written to @p buf
  */
 size_t coap_opt_put_block2(uint8_t *buf, uint16_t lastonum, coap_block_slicer_t *slicer, bool more);
+
+/**
+ * @brief   Insert an automatically generated etag option into the buffer
+ *
+ * This initializes an etag value based on Fletcher's 16 bit checksum algorithm
+ *
+ * @param[out]  buf         buffer to write to
+ * @param[in]   lastonum    number of previous option (for delta calculation),
+ *                          must be < 23
+ * @param[in]   slicer      coap blockwise slicer helper struct
+ *
+ * @returns     amount of bytes written to @p buf
+ */
+size_t coap_opt_put_auto_etag(uint8_t *buf, uint16_t lastonum, coap_block_slicer_t *slicer);
 
 /**
  * @brief   Get content type from packet
