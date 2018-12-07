@@ -460,11 +460,6 @@ void recv_setup(plumbum_t *plumbum, usbdev_ep_t *ep)
 static void *_plumbum_thread(void *args)
 {
     plumbum_t *plumbum = (plumbum_t*)args;
-    plumbum_audio_t audio;
-
-    plumbum_audio_block_clock_t a_clock;
-    plumbum_audio_block_input_t a_input;
-    plumbum_audio_block_output_t a_output;
 
     mutex_lock(&plumbum->lock);
     usbdev_t *dev = plumbum->dev;
@@ -501,9 +496,16 @@ static void *_plumbum_thread(void *args)
 
     plumbum->state = PLUMBUM_STATE_DISCONNECT;
     mutex_unlock(&plumbum->lock);
-    plumbum_audio_init(plumbum, &audio);
     keyboard_init(plumbum);
 
+    /* Ugly way to make the plumbum_audio module optional */
+#ifdef MODULE_PLUMBUM_AUDIO
+    plumbum_audio_init(plumbum, &audio);
+    plumbum_audio_t audio;
+
+    plumbum_audio_block_clock_t a_clock;
+    plumbum_audio_block_input_t a_input;
+    plumbum_audio_block_output_t a_output;
     plumbum_audio_add_clock(&audio, &a_clock, PLUMBUM_AUDIO_CLOCK_INTERNAL_FIXED);
     plumbum_audio_add_input(&audio, &a_input, USB_AUDIO_TERMINALTYPE_USB_STREAMING);
     plumbum_audio_add_output(&audio, &a_output, USB_AUDIO_TERMINALTYPE_ANALOG);
@@ -512,7 +514,7 @@ static void *_plumbum_thread(void *args)
     a_input.clock = &a_clock;
 
     a_output.source = (plumbum_audio_block_t*)&a_input;
-
+#endif
     xtimer_sleep(1);
     usbopt_enable_t enable = USBOPT_ENABLE;
     dev->driver->set(dev, USBOPT_ATTACH, &enable, sizeof(usbopt_enable_t));
