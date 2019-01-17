@@ -403,7 +403,6 @@ int main(void)
     int res = verify(verify_result, 0, sm, smlen, sign_pk);
 #elif defined(MODULE_LIBHYDROGEN)
     /* libhydrogen verify */
-    int res = verify(verify_result, 0, sm, smlen, sign_pk);
     int res = hydro_sign_verify(signature, message, sizeof(message), CONTEXT, keypair.pk);
 #elif defined(MODULE_WOLFSSL)
     int res;
