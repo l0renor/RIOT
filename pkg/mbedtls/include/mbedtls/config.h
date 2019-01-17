@@ -1576,7 +1576,7 @@
  *          library/pkcs5.c
  *          library/pkparse.c
  */
-//#define MBEDTLS_ASN1_PARSE_C
+#define MBEDTLS_ASN1_PARSE_C
 
 /**
  * \def MBEDTLS_ASN1_WRITE_C
@@ -1590,7 +1590,7 @@
  *          library/x509write_crt.c
  *          library/x509write_csr.c
  */
-//#define MBEDTLS_ASN1_WRITE_C
+#define MBEDTLS_ASN1_WRITE_C
 
 /**
  * \def MBEDTLS_BASE64_C
