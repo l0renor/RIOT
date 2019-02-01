@@ -1,0 +1,7 @@
+INCLUDES += -I$(PKGDIRBASE)/lvgl
+CFLAGS += -Wno-pedantic -Wno-unused-parameter -Wno-sign-compare
+
+# Link SDL if enabled.
+ifneq (,$(filter lvgl_sdl,$(USEMODULE)))
+  LINKFLAGS += `sdl2-config --libs`
+endif
