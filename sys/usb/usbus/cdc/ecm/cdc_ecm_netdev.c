@@ -76,7 +76,9 @@ static int _send(netdev_t *netdev, const iolist_t *iolist)
         mutex_lock(&cdcecm->out_lock);
         if (iolist->iol_len - iol_offset > usb_remain) {
             /* Only part of the iolist can be copied, usb_remain bytes */
-            memcpy(buf + usb_offset, iolist->iol_base + iol_offset, usb_remain);
+            memcpy((uint8_t*)buf + usb_offset,
+                    (uint8_t*)iolist->iol_base + iol_offset,
+                    usb_remain);
 
             usb_offset =  cdcecm->ep_in.ep->len;
             len -= usb_remain;
@@ -86,7 +88,9 @@ static int _send(netdev_t *netdev, const iolist_t *iolist)
         else {
             size_t bytes_copied = iolist->iol_len - iol_offset;
             /* Full iolist can be copied */
-            memcpy(buf + usb_offset, iolist->iol_base + iol_offset, bytes_copied);
+            memcpy((uint8_t*)buf + usb_offset,
+                    (uint8_t*)iolist->iol_base + iol_offset,
+                    bytes_copied);
             len -= bytes_copied;
             usb_offset += bytes_copied;
             usb_remain -= bytes_copied;
