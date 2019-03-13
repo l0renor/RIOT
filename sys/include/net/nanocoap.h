@@ -467,6 +467,9 @@ size_t coap_put_option(uint8_t *buf, uint16_t lastonum, uint16_t onum, uint8_t *
  */
 size_t coap_put_option_ct(uint8_t *buf, uint16_t lastonum, uint16_t content_type);
 
+size_t coap_put_option_block(uint8_t *buf, uint16_t lastonum, unsigned blknum,
+                             unsigned szx, int more, uint16_t option);
+
 /**
  * @brief   Encode the given string as multi-part option into buffer
  *

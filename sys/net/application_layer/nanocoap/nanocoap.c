@@ -627,7 +627,7 @@ static unsigned _slicer_blknum(coap_block_slicer_t *slicer)
     return blknum;
 }
 
-static size_t coap_put_option_block(uint8_t *buf, uint16_t lastonum, unsigned blknum, unsigned szx, int more, uint16_t option)
+size_t coap_put_option_block(uint8_t *buf, uint16_t lastonum, unsigned blknum, unsigned szx, int more, uint16_t option)
 {
     uint32_t blkopt = (blknum << 4) | szx | (more ? 0x8 : 0);
     size_t olen = _encode_uint(&blkopt);
