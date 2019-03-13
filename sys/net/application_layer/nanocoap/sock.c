@@ -116,6 +116,70 @@ ssize_t nanocoap_get(sock_udp_ep_t *remote, const char *path, uint8_t *buf, size
     return res;
 }
 
+static int _fetch_block(coap_pkt_t *pkt, uint8_t *buf, sock_udp_ep_t *local, sock_udp_ep_t *remote,
+                        const char *path, coap_blksize_t blksize, size_t num)
+{
+    uint8_t *pktpos = buf;
+    pkt->hdr = (coap_hdr_t *)buf;
+
+    pktpos += coap_build_hdr(pkt->hdr, COAP_TYPE_CON, NULL, 0, COAP_METHOD_GET, num);
+    pktpos += coap_opt_put_uri_path(pktpos, 0, path);
+    pktpos += coap_put_option_block(pktpos, COAP_OPT_URI_PATH, num, blksize, 0, COAP_OPT_BLOCK2);
+
+    pkt->payload = pktpos;
+    pkt->payload_len = 0;
+
+    int res = nanocoap_request(pkt, local, remote, 64 + (0x1 << (blksize + 4)));
+    if (res < 0) {
+        return res;
+    }
+
+    res = coap_get_code(pkt);
+    DEBUG("code=%i\n", res);
+    if (res != 205) {
+        return -res;
+    }
+
+    return 0;
+}
+
+int nanocoap_get_blockwise(sock_udp_ep_t *remote, const char *path,
+                               coap_blksize_t blksize,
+                               coap_blockwise_cb_t callback, void *arg)
+{
+    /* mmmmh dynamically sized array */
+    uint8_t buf[64 + (0x1 << (blksize + 4))];
+    sock_udp_ep_t local = SOCK_IPV6_EP_ANY;
+    coap_pkt_t pkt;
+
+    int more = 1;
+    size_t num = 0;
+    while (more) {
+        DEBUG("fetching block %u\n", (unsigned)num);
+        int res = _fetch_block(&pkt, buf, &local, remote, path, blksize, num);
+        DEBUG("res=%i\n", res);
+
+        if (!res) {
+            coap_block1_t block2;
+            coap_get_block2(&pkt, &block2);
+            more = block2.more;
+
+            if (callback(arg, block2.offset, pkt.payload, pkt.payload_len, more)) {
+                DEBUG("callback res != 0, aborting.\n");
+                return -1;
+            }
+        }
+        else {
+            DEBUG("error fetching block\n");
+            return -1;
+        }
+
+        num += 1;
+    }
+
+    return 0;
+}
+
 int nanocoap_server(sock_udp_ep_t *local, uint8_t *buf, size_t bufsize)
 {
     sock_udp_t sock;
