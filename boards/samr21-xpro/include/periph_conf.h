@@ -274,6 +274,21 @@ static const adc_conf_chan_t adc_channels[] = {
 #define ADC_0_CHANNELS                     (2U)
 #define ADC_NUMOF                          ADC_0_CHANNELS
 /** @} */
+
+/**
+ * @name USB peripheral configuration
+ * @{
+ */
+static const sam0_common_usb_config_t sam_usbdev_config[] = {
+    {
+        .dm     = GPIO_PIN(PA, 24),
+        .dm_mux = GPIO_MUX_G,
+        .dp     = GPIO_PIN(PA, 25),
+        .dp_mux = GPIO_MUX_G,
+        .device = &USB->DEVICE,
+    }
+};
+/** @} */
 #ifdef __cplusplus
 }
 #endif
