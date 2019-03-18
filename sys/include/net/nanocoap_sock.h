@@ -25,6 +25,7 @@
 
 #include "net/nanocoap.h"
 #include "net/sock/udp.h"
+#include "net/sock/util.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -73,7 +74,11 @@ ssize_t nanocoap_get_blockwise(sock_udp_ep_t *remote, const char *path,
                                coap_blksize_t blksize,
                                coap_blockwise_cb_t callback, void *arg);
 
+int nanocoap_get_blockwise_url(const char *url, coap_blksize_t blksize,
+                               coap_blockwise_cb_t callback, void *arg);
 
+int nanocoap_get_blockwise_url_buf(const char *url, coap_blksize_t blksize,
+                                   uint8_t *buf, size_t len);
 /**
  * @brief   Simple synchronous CoAP request
  *
