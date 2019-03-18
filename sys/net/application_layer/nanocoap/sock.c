@@ -238,6 +238,8 @@ typedef struct {
 
 static int _2buf(void *arg, size_t offset, uint8_t *buf, size_t len, int more)
 {
+    (void)more;
+
     _buf_t *_buf = arg;
     if (_buf->offset != offset) {
         return 0;
