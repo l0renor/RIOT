@@ -57,9 +57,9 @@ suit/notify:
 	@test -n "$(SUIT_CLIENT)"
 	$(Q)TARGET_SLOT=$$(aiocoap-client "coap://$(SUIT_CLIENT)/suit/slot/inactive") && \
 	if [ "$$TARGET_SLOT" = 0 ]; then \
-		export PAYLOAD="$(SUIT_COAP_ROOT)/$$(basename $(SLOT0_SUIT_MANIFEST))"; \
+		export PAYLOAD="$(SUIT_COAP_ROOT)/$$(basename $(SLOT0_SUIT_MANIFEST_LATEST))"; \
 	else \
-		export PAYLOAD="$(SUIT_COAP_ROOT)/$$(basename $(SLOT1_SUIT_MANIFEST))"; \
+		export PAYLOAD="$(SUIT_COAP_ROOT)/$$(basename $(SLOT1_SUIT_MANIFEST_LATEST))"; \
 	fi && \
 	aiocoap-client -m POST "coap://$(SUIT_CLIENT)/suit/trigger" \
 		--payload "$${PAYLOAD}" && \
