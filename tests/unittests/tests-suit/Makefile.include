@@ -1,0 +1,2 @@
+USEMODULE += suit_v1_cbor
+USEMODULE += suit_v1
