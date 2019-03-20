@@ -9,12 +9,12 @@ All requirements can be installed with [pip](https://github.com/pypa/pip).
 
 1. Install pip for Python 3 using:
 
-    $ wget -qO - https://bootstrap.pypa.io/get-pip.py | sudo python3
+    $ wget -qO - https://bootstrap.pypa.io/get-pip.py | python3
 
 2. Install the manifest generator dependecies:
 
     $ cd RIOT/dist/tools/suit_v1
-    $ sudo pip install -r requirements.txt
+    $ pip3 install -r requirements.txt
 
 #### Generate a Manifest
 
