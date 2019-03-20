@@ -24,9 +24,26 @@ server is used.
 
 # Setup
 
+### Initial flash
+
+In order to get a SUIT capable firmware onto the node, do (with in the RIOT
+checkout root folder):
+
+    $ BOARD=samr21-xpro make -C examples/suit_update clean riotboot/flash -j4
+
 ### Setup network
 
-In one shell:
+First, you need to compile `ethos`.
+Go to `/dist/tools/ethos` and type:
+
+    $ make clean all
+
+Then, you need to compile UHCP.
+This tool is found in `/dist/tools/uhcpd`. So, as for `ethos`:
+
+    $ make clean all
+
+In one shell and with the board already flashed and connected to /dev/ttyACM0:
 
     $ cd $RIOTBASE/dist/tools/ethos
     $ sudo ./start_network.sh /dev/ttyACM0 riot0 fd00::1/64
@@ -44,13 +61,6 @@ Start aiocoap-fileserver:
 
 If aiocoap was cloned and built from source aiocoap-filserver will be located
 at <AIOCOAP_BASE_DIR>/aiocoap/contrib.
-
-### Initial flash
-
-In order to get a SUIT capable firmware onto the node, do (with in the RIOT
-checkout root folder):
-
-    $ BOARD=samr21-xpro make -C examples/suit_update clean riotboot/flash -j4
 
 ### Key Generation
 
@@ -90,6 +100,14 @@ This will notify the node of new availale maifest and it will fetch it.
 
 ## Network
 
+For connecting the device with the internet we are using ethos (a simple
+etehernet over serial driver).
+
+When executing $RIOTBASE/dist/tools/ethos:
+    $ sudo ./start_network.sh /dev/ttyACM0 riot0 fd00::1/64
+A tap interface called riot0 is setup and configures fd00::1/64 as a prefix
+for the
+
 ## Sever and File System Variables
 
 The following variables are defined in makefiles/suit.inc.mk:
@@ -116,7 +134,7 @@ All files (both slot binaries, both manifests, copies of manifests with
 $(SUIT_COAP_FSROOT)/$(SUIT_COAP_BASEPATH). The manifests contain URLs to
 $(SUIT_COAP_ROOT)/* and are signed that way.
 
-The whole tree under $(SUIT_COAP_FSROOT) is expected to be served via CoAP 
+The whole tree under $(SUIT_COAP_FSROOT) is expected to be served via CoAP
 under $(SUIT_COAP_ROOT). This can be done by e.g., "aiocoap-fileserver $(SUIT_COAP_FSROOT)".
 
 ## Makefile recipes
