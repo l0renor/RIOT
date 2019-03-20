@@ -11,8 +11,8 @@
 #include "embUnit.h"
 
 #include "tests-suit.h"
-#include "suit/cbor.h"
-#include "suit.h"
+#include "suit/v1/cbor.h"
+#include "suit/v1/suit.h"
 
 #include "uuid.h"
 
@@ -43,7 +43,7 @@
  *  ]
  * ]
  */
-static unsigned char test_suit_cbor_full[] = {
+static unsigned char test_suit_v1_cbor_full[] = {
     0x8a, 0x02, 0xf6, 0x48, 0xc4, 0x3e, 0x39, 0x32, 0xee, 0x2e, 0x15, 0x10,
     0x1a, 0x5b, 0x0c, 0x15, 0x29, 0x83, 0x82, 0x01, 0x50, 0x54, 0x7d, 0x0d,
     0x74, 0x6d, 0x3a, 0x5a, 0x92, 0x96, 0x62, 0x48, 0x81, 0xaf, 0xd9, 0x40,
@@ -70,21 +70,18 @@ static const uint8_t cond[][16] = {
       0xc9, 0x0d, 0xcf, 0xeb },
 };
 
-static uint8_t test_suit_cbor_conditions[] = {
+static uint8_t test_suit_v1_cbor_conditions[] = {
     0x89, 0x01, 0xf6, 0x48, 0xc4, 0x3e, 0x39, 0x32, 0xee, 0x2e, 0x15, 0x10,
     0x1a, 0x5b, 0x0c, 0x15, 0x29, 0x83, 0x82, 0x01, 0x50,
     /* First conditional (index 21)*/
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00,
-    0x82, 0x02, 0x50,
+    0x00, 0x00, 0x00, 0x00, 0x82, 0x02, 0x50,
     /* Second conditional (index 40)*/
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00,
-    0x82, 0x03, 0x50,
+    0x00, 0x00, 0x00, 0x00, 0x82, 0x03, 0x50,
     /* Third conditional (index 59)*/
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00,
-    0xf6, 0xf6, 0xf6, 0xf6
+    0x00, 0x00, 0x00, 0x00, 0xf6, 0xf6, 0xf6, 0xf6
 };
 
 static const char test_uri[] = "coap://[ff02::1]/fw/test";
@@ -92,39 +89,42 @@ static const uint8_t test_storid[] = { 0x00, 0x01 };
 
 static char uri_buf[128];
 
-static void _test_cond(const suit_cbor_manifest_t *manifest,
-                       size_t idx, int expected_type)
+static void _test_cond(const suit_v1_cbor_manifest_t *manifest, size_t idx,
+                       int expected_type)
 {
     int cond_type = 0;
     uint8_t param[16];
 
-    TEST_ASSERT(suit_cbor_get_condition_type(manifest, idx, &cond_type) >= 0);
+    TEST_ASSERT(suit_v1_cbor_get_condition_type(manifest, idx,
+                                                &cond_type) >= 0);
     TEST_ASSERT_EQUAL_INT(expected_type, cond_type);
 
     size_t param_len = sizeof(param);
-    size_t res = suit_cbor_get_condition_parameter(manifest, idx, param,
-                                                   &param_len);
+    size_t res = suit_v1_cbor_get_condition_parameter(manifest, idx, param,
+                                                      &param_len);
 
     TEST_ASSERT_EQUAL_INT(param_len, res);
     TEST_ASSERT_EQUAL_INT(0, memcmp(param, cond[idx], res));
 }
 
-void test_suit_cbor_parse(void)
+void test_suit_v1_cbor_parse(void)
 {
-    suit_cbor_manifest_t manifest;
+    suit_v1_cbor_manifest_t manifest;
 
     uint8_t digest[64];
     size_t dlen = sizeof(digest);
 
-    TEST_ASSERT_EQUAL_INT(suit_cbor_parse(&manifest, test_suit_cbor_full,
-                                          sizeof(test_suit_cbor_full)), 0);
+    TEST_ASSERT_EQUAL_INT(suit_v1_cbor_parse(&manifest, test_suit_v1_cbor_full,
+                                             sizeof(test_suit_v1_cbor_full)),
+                          0);
 
     uint32_t version = 0;
-    TEST_ASSERT_EQUAL_INT(suit_cbor_get_version(&manifest, &version), SUIT_OK);
+    TEST_ASSERT_EQUAL_INT(suit_v1_cbor_get_version(&manifest, &version),
+                          SUIT_OK);
     TEST_ASSERT_EQUAL_INT(version, 2);
 
     uint32_t seq_no;
-    TEST_ASSERT_EQUAL_INT(suit_cbor_get_seq_no(&manifest, &seq_no), SUIT_OK);
+    TEST_ASSERT_EQUAL_INT(suit_v1_cbor_get_seq_no(&manifest, &seq_no), SUIT_OK);
     TEST_ASSERT_EQUAL_INT(seq_no, 1527518505);
 
     /* Test conditional types */
@@ -132,85 +132,89 @@ void test_suit_cbor_parse(void)
     _test_cond(&manifest, 1, 2);    /* Second condition, type 2 */
     _test_cond(&manifest, 2, 3);    /* Third condition, type 3 */
 
-
     /* Nonexisting condition */
     TEST_ASSERT_EQUAL_INT(SUIT_ERR_COND,
-                          suit_cbor_get_condition_type(&manifest, 3,
-                                                       NULL));
+                          suit_v1_cbor_get_condition_type(&manifest, 3, NULL));
 
     uint32_t size;
-    TEST_ASSERT_EQUAL_INT(suit_cbor_payload_get_size(&manifest, &size), SUIT_OK);
+    TEST_ASSERT_EQUAL_INT(suit_v1_cbor_payload_get_size(&manifest,
+                                                        &size), SUIT_OK);
     TEST_ASSERT_EQUAL_INT(size, 71480);
 
-    suit_cbor_digest_t algo = -1;
-    TEST_ASSERT_EQUAL_INT(suit_cbor_payload_get_digestalgo(&manifest, &algo),
-                          SUIT_OK);
+    suit_v1_cbor_digest_t algo = -1;
+    TEST_ASSERT_EQUAL_INT(suit_v1_cbor_payload_get_digestalgo(&manifest,
+                                                              &algo), SUIT_OK);
     TEST_ASSERT_EQUAL_INT(algo, SUIT_DIGEST_SHA256);
 
-    int res = suit_cbor_payload_get_digest(&manifest, SUIT_DIGEST_TYPE_RAW,
-                                           digest, &dlen);
+    int res = suit_v1_cbor_payload_get_digest(&manifest, SUIT_DIGEST_TYPE_RAW,
+                                              digest, &dlen);
     TEST_ASSERT_EQUAL_INT(1, res);
 
-    res = suit_cbor_payload_get_digest(&manifest, SUIT_DIGEST_TYPE_CIPHERTEXT,
-                                       digest, &dlen);
+    res = suit_v1_cbor_payload_get_digest(&manifest,
+                                          SUIT_DIGEST_TYPE_CIPHERTEXT, digest,
+                                          &dlen);
     TEST_ASSERT_EQUAL_INT(0, res);
 
-    TEST_ASSERT_EQUAL_INT(suit_cbor_get_url(&manifest, uri_buf, sizeof(uri_buf)), 24);
+    TEST_ASSERT_EQUAL_INT(suit_v1_cbor_get_url(&manifest, uri_buf,
+                                               sizeof(uri_buf)), 24);
     TEST_ASSERT_EQUAL_STRING((char *)test_uri, (char *)uri_buf);
 
     uint8_t storid[4];
     size_t storid_len = sizeof(storid);
-    TEST_ASSERT_EQUAL_INT(suit_cbor_payload_get_storid(&manifest, storid,
-                                                       &storid_len), SUIT_OK);
+    TEST_ASSERT_EQUAL_INT(suit_v1_cbor_payload_get_storid(&manifest, storid,
+                                                          &storid_len),
+                          SUIT_OK);
     TEST_ASSERT_EQUAL_INT(storid_len, 2);
     TEST_ASSERT_EQUAL_INT(memcmp(test_storid, storid, storid_len), 0);
 }
 
 void test_suit_conditions(void)
 {
-    suit_cbor_manifest_t manifest;
-    suit_init_conditions();
-    
-    int res = suit_parse(&manifest, test_suit_cbor_conditions,
-                         sizeof(test_suit_cbor_conditions));
+    suit_v1_cbor_manifest_t manifest;
+
+    suit_v1_init_conditions();
+
+    int res =
+        suit_v1_parse(&manifest, test_suit_v1_cbor_conditions,
+                      sizeof(test_suit_v1_cbor_conditions));
     TEST_ASSERT_EQUAL_INT(SUIT_OK, res);
 
-    res = suit_validate_manifest(&manifest, 0);
+    res = suit_v1_validate_manifest(&manifest, 0);
     TEST_ASSERT_EQUAL_INT(SUIT_ERR_COND, res);
 
     /* Copy binary uuid values into the manifest */
-    uuid_t *uuid = suit_get_vendor_id();
-    memcpy(&test_suit_cbor_conditions[21], uuid, sizeof(uuid_t));
-    
-    res = suit_validate_manifest(&manifest, 0);
+    uuid_t *uuid = suit_v1_get_vendor_id();
+    memcpy(&test_suit_v1_cbor_conditions[21], uuid, sizeof(uuid_t));
+
+    res = suit_v1_validate_manifest(&manifest, 0);
     TEST_ASSERT_EQUAL_INT(SUIT_ERR_COND, res);
-    
-    uuid = suit_get_class_id();
-    memcpy(&test_suit_cbor_conditions[40], uuid, sizeof(uuid_t));
-    
-    res = suit_validate_manifest(&manifest, 0);
+
+    uuid = suit_v1_get_class_id();
+    memcpy(&test_suit_v1_cbor_conditions[40], uuid, sizeof(uuid_t));
+
+    res = suit_v1_validate_manifest(&manifest, 0);
     TEST_ASSERT_EQUAL_INT(SUIT_ERR_COND, res);
-    
-    uuid = suit_get_device_id();
-    memcpy(&test_suit_cbor_conditions[59], uuid, sizeof(uuid_t));
+
+    uuid = suit_v1_get_device_id();
+    memcpy(&test_suit_v1_cbor_conditions[59], uuid, sizeof(uuid_t));
 
     /* The manifest validation must only return SUIT_OK after copying a valid
      * value in all conditions in the manifest
      */
-    res = suit_validate_manifest(&manifest, 0);
+    res = suit_v1_validate_manifest(&manifest, 0);
     TEST_ASSERT_EQUAL_INT(SUIT_OK, res);
 }
 
 Test *tests_suit_tests(void)
 {
     EMB_UNIT_TESTFIXTURES(fixtures) {
-        new_TestFixture(test_suit_cbor_parse),
-        new_TestFixture(test_suit_conditions),
+        new_TestFixture(test_suit_v1_cbor_parse), new_TestFixture(
+            test_suit_conditions),
     };
 
-    EMB_UNIT_TESTCALLER(suit_cbor_tests, NULL, NULL, fixtures);
+    EMB_UNIT_TESTCALLER(suit_v1_cbor_tests, NULL, NULL, fixtures);
 
-    return (Test *)&suit_cbor_tests;
+    return (Test *)&suit_v1_cbor_tests;
 }
 
 void tests_suit(void)

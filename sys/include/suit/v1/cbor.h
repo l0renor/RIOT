@@ -6,7 +6,6 @@
  * General Public License v2.1. See the file LICENSE in the top level
  * directory for more details.
  */
-
 /**
  * @defgroup    sys_suit SUIT manifest parsers
  * @ingroup     sys
@@ -14,7 +13,7 @@
  *
  * This is a simple suit manifest parser for RIOT. The high level assumption is
  * that the raw manifest data is stored in a buffered location where raw values
- * or strings can be left during the lifetime of the suit_manifest_t struct.
+ * or strings can be left during the lifetime of the suit_v1_manifest_t struct.
  * This assumption is valid in the case where a (network based) transfer
  * mechanism is used to transfer the manifest to the node and an intermediate
  * buffer is necessary to validate the manifest.
@@ -30,8 +29,8 @@
  * @author      Koen Zandberg <koen@bergzand.net>
  */
 
-#ifndef SUIT_CBOR_H
-#define SUIT_CBOR_H
+#ifndef SUIT_V1_CBOR_H
+#define SUIT_V1_CBOR_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -105,7 +104,7 @@ typedef enum {
     SUIT_DIGEST_SHA256  = 1,    /**< SHA256 */
     SUIT_DIGEST_SHA384  = 2,    /**< SHA384 */
     SUIT_DIGEST_SHA512  = 3,    /**< SHA512 */
-} suit_cbor_digest_t;
+} suit_v1_cbor_digest_t;
 
 /**
  * @brief SUIT payload digest types
@@ -118,7 +117,7 @@ typedef enum {
     SUIT_DIGEST_TYPE_INSTALLED  = 2,    /**< Installed firmware digest */
     SUIT_DIGEST_TYPE_CIPHERTEXT = 3,    /**< Ciphertext digest */
     SUIT_DIGEST_TYPE_PREIMAGE   = 4     /**< Pre-image digest */
-} suit_cbor_digest_type_t;
+} suit_v1_cbor_digest_type_t;
 
 /**
  * @brief SUIT manifest struct
@@ -126,11 +125,11 @@ typedef enum {
 typedef struct {
     const uint8_t *buf; /**< ptr to the buffer of the manifest */
     size_t len;         /**< length of the manifest */
-} suit_cbor_manifest_t;
+} suit_v1_cbor_manifest_t;
 
 /**
  * @brief Parse a buffer containing a cbor encoded manifest into a
- * suit_cbor_manifest_t struct
+ * suit_v1_cbor_manifest_t struct
  *
  * @param   manifest    manifest to fill
  * @param   buf         Buffer to read from
@@ -139,8 +138,8 @@ typedef struct {
  * return               @ref SUIT_OK on success
  * return               negative on parsing error
  */
-int suit_cbor_parse(suit_cbor_manifest_t *manifest, const uint8_t *buf,
-                    size_t len);
+int suit_v1_cbor_parse(suit_v1_cbor_manifest_t *manifest, const uint8_t *buf,
+                       size_t len);
 
 /**
  * @brief Copy the url from the manifest into the supplied buffer
@@ -152,7 +151,8 @@ int suit_cbor_parse(suit_cbor_manifest_t *manifest, const uint8_t *buf,
  * @return                  Length of the url
  * @return                  negative on error
  */
-ssize_t suit_cbor_get_url(const suit_cbor_manifest_t *manifest, char *buf, size_t len);
+ssize_t suit_v1_cbor_get_url(const suit_v1_cbor_manifest_t *manifest, char *buf,
+                             size_t len);
 
 /**
  * @brief Copy the version from the manifest into the supplied uint32_t
@@ -163,7 +163,8 @@ ssize_t suit_cbor_get_url(const suit_cbor_manifest_t *manifest, char *buf, size_
  * @return                  @ref SUIT_OK on success
  * @return                  negative on error
  */
-int suit_cbor_get_version(const suit_cbor_manifest_t *manifest, uint32_t *version);
+int suit_v1_cbor_get_version(const suit_v1_cbor_manifest_t *manifest,
+                             uint32_t *version);
 
 /**
  * @brief Retrieve the sequence number of the manifest
@@ -177,7 +178,8 @@ int suit_cbor_get_version(const suit_cbor_manifest_t *manifest, uint32_t *versio
  * @return                  @ref SUIT_OK on success
  * @return                  negative on error
  */
-int suit_cbor_get_seq_no(const suit_cbor_manifest_t *manifest, uint32_t *seq_no);
+int suit_v1_cbor_get_seq_no(const suit_v1_cbor_manifest_t *manifest,
+                            uint32_t *seq_no);
 
 /**
  * @brief Retrieve the condition type at position \p idx from the manifest
@@ -189,8 +191,8 @@ int suit_cbor_get_seq_no(const suit_cbor_manifest_t *manifest, uint32_t *seq_no)
  * @return                      Length of the parameter
  * @return                      Negative on error
  */
-ssize_t suit_cbor_get_condition_type(const suit_cbor_manifest_t *manifest,
-                                     unsigned idx, signed *condition);
+ssize_t suit_v1_cbor_get_condition_type(const suit_v1_cbor_manifest_t *manifest,
+                                        unsigned idx, signed *condition);
 
 /**
  * @brief Retrieve the condition parameter at position \p idx from the manifest
@@ -204,8 +206,9 @@ ssize_t suit_cbor_get_condition_type(const suit_cbor_manifest_t *manifest,
  * @return                      Length of the parameter
  * @return                      Negative on error
  */
-int suit_cbor_get_condition_parameter(const suit_cbor_manifest_t *manifest,
-                                      unsigned idx, uint8_t *buf, size_t *len);
+int suit_v1_cbor_get_condition_parameter(
+    const suit_v1_cbor_manifest_t *manifest, unsigned idx, uint8_t *buf,
+    size_t *len);
 
 /**
  * @brief Retrieve the size from the payloadinfo in the manifest
@@ -216,7 +219,8 @@ int suit_cbor_get_condition_parameter(const suit_cbor_manifest_t *manifest,
  * @return                  @ref SUIT_OK on success
  * @return                  negative on error
  */
-int suit_cbor_payload_get_size(const suit_cbor_manifest_t *manifest, uint32_t *size);
+int suit_v1_cbor_payload_get_size(const suit_v1_cbor_manifest_t *manifest,
+                                  uint32_t *size);
 
 /**
  * @brief Retrieve the digest algorithm from the payloadinfo in the manifest
@@ -227,8 +231,8 @@ int suit_cbor_payload_get_size(const suit_cbor_manifest_t *manifest, uint32_t *s
  * @return                  @ref SUIT_OK on success
  * @return                  negative on error
  */
-int suit_cbor_payload_get_digestalgo(const suit_cbor_manifest_t *manifest,
-                                     suit_cbor_digest_t *algo);
+int suit_v1_cbor_payload_get_digestalgo(const suit_v1_cbor_manifest_t *manifest,
+                                        suit_v1_cbor_digest_t *algo);
 
 /**
  * @brief Retrieve the storage id from the payloadinfo in the manifest
@@ -240,7 +244,8 @@ int suit_cbor_payload_get_digestalgo(const suit_cbor_manifest_t *manifest,
  * @return                      @ref SUIT_OK on success
  * @return                      negative on error
  */
-int suit_cbor_payload_get_storid(const suit_cbor_manifest_t *manifest, uint8_t *buf, size_t *len);
+int suit_v1_cbor_payload_get_storid(const suit_v1_cbor_manifest_t *manifest,
+                                    uint8_t *buf, size_t *len);
 
 /**
  * @brief Retrieve the digest from the payloadinfo in the manifest
@@ -253,20 +258,22 @@ int suit_cbor_payload_get_storid(const suit_cbor_manifest_t *manifest, uint8_t *
  * @return                      @ref SUIT_OK on success
  * @return                      negative on error
  */
-int suit_cbor_payload_get_digest(const suit_cbor_manifest_t *manifest,
-                                 suit_cbor_digest_type_t digest, uint8_t *buf, size_t *len);
+int suit_v1_cbor_payload_get_digest(const suit_v1_cbor_manifest_t *manifest,
+                                    suit_v1_cbor_digest_type_t digest,
+                                    uint8_t *buf, size_t *len);
 
 
-int suit_cbor_validator_verify_conditions(suit_cbor_manifest_t *manifest, uint64_t curtime);
+int suit_v1_cbor_validator_verify_conditions(suit_v1_cbor_manifest_t *manifest,
+                                             uint64_t curtime);
 
 /**
  * @brief Initialize the UUID's for conditionals
  */
-void suit_cbor_uuid_init(void);
+void suit_v1_cbor_uuid_init(void);
 
-const uuid_t *suit_cbor_get_uuid_vendor(void);
-const uuid_t *suit_cbor_get_uuid_class(void);
-const uuid_t *suit_cbor_get_uuid_device(void);
+const uuid_t *suit_v1_cbor_get_uuid_vendor(void);
+const uuid_t *suit_v1_cbor_get_uuid_class(void);
+const uuid_t *suit_v1_cbor_get_uuid_device(void);
 
 /**
  * Check if a manifest is a valid update compared to the old manifest
@@ -276,12 +283,12 @@ const uuid_t *suit_cbor_get_uuid_device(void);
  *
  * @return          True when the new manifest is a newer manifest
  */
-bool suit_cbor_manifest_isnewer(const suit_cbor_manifest_t *old,
-                                const suit_cbor_manifest_t *cur);
+bool suit_v1_cbor_manifest_isnewer(const suit_v1_cbor_manifest_t *old,
+                                   const suit_v1_cbor_manifest_t *cur);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* SUIT_CBOR_H */
+#endif /* SUIT_V1_CBOR_H */
 /** @} */

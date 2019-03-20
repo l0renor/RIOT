@@ -17,8 +17,8 @@
  * @}
  */
 
-#include "suit.h"
-#include "suit/cbor.h"
+#include "suit/v1/suit.h"
+#include "suit/v1/cbor.h"
 #include "uuid.h"
 #include "luid.h"
 
@@ -27,14 +27,14 @@
 
 #define SUIT_DEVID_BYTES 32
 
-static suit_condition_params_t _conditions;
+static suit_v1_condition_params_t _conditions;
 
-static int _validate_uuid(const suit_cbor_manifest_t *manifest,
+static int _validate_uuid(const suit_v1_cbor_manifest_t *manifest,
                           size_t idx, uuid_t *uuid)
 {
     uuid_t parameter;
     size_t len = sizeof(parameter);
-    int res = suit_cbor_get_condition_parameter(manifest, idx,
+    int res = suit_v1_cbor_get_condition_parameter(manifest, idx,
                                                 (uint8_t *)&parameter,
                                                 &len);
 
@@ -44,7 +44,7 @@ static int _validate_uuid(const suit_cbor_manifest_t *manifest,
     return uuid_equal(&parameter, uuid) ? SUIT_OK : SUIT_ERR_COND;
 }
 
-static int _validate_condition(const suit_cbor_manifest_t *manifest,
+static int _validate_condition(const suit_v1_cbor_manifest_t *manifest,
                                size_t idx, int type)
 {
     switch (type) {
@@ -63,12 +63,12 @@ static int _validate_condition(const suit_cbor_manifest_t *manifest,
     }
 }
 
-static int _validate_conditions(const suit_cbor_manifest_t *manifest)
+static int _validate_conditions(const suit_v1_cbor_manifest_t *manifest)
 {
     size_t idx = 0;
     int type = 0;
 
-    while (suit_cbor_get_condition_type(manifest, idx, &type) > 0) {
+    while (suit_v1_cbor_get_condition_type(manifest, idx, &type) > 0) {
         int res = _validate_condition(manifest, idx, type);
         if (res < 0) {
             DEBUG("suit: error validating conditional at index %u"
@@ -80,7 +80,7 @@ static int _validate_conditions(const suit_cbor_manifest_t *manifest)
     return SUIT_OK;
 }
 
-void suit_init_conditions(void)
+void suit_v1_init_conditions(void)
 {
     /* Generate UUID's following the instructions from
      * https://tools.ietf.org/html/draft-moran-suit-manifest-03#section-7.7.1
@@ -98,19 +98,19 @@ void suit_init_conditions(void)
     uuid_v5(&_conditions.device, &_conditions.vendor, devid, SUIT_DEVID_BYTES);
 }
 
-int suit_parse(suit_cbor_manifest_t *manifest, uint8_t *buf, size_t len)
+int suit_v1_parse(suit_v1_cbor_manifest_t *manifest, uint8_t *buf, size_t len)
 {
-    return suit_cbor_parse(manifest, buf, len);
+    return suit_v1_cbor_parse(manifest, buf, len);
 }
 
-int suit_validate_manifest(const suit_cbor_manifest_t *manifest,
+int suit_v1_validate_manifest(const suit_v1_cbor_manifest_t *manifest,
                            uint32_t cur_seq_no)
 {
     uint32_t version;
     uint32_t seq_no;
 
     /* Validate manifest version number */
-    if (suit_cbor_get_version(manifest, &version) < 0) {
+    if (suit_v1_cbor_get_version(manifest, &version) < 0) {
         return SUIT_ERR_INVALID_MANIFEST;
     }
 
@@ -119,7 +119,7 @@ int suit_validate_manifest(const suit_cbor_manifest_t *manifest,
     }
 
     /* Compare sequence numbers */
-    if (suit_cbor_get_seq_no(manifest, &seq_no) < 0) {
+    if (suit_v1_cbor_get_seq_no(manifest, &seq_no) < 0) {
         return SUIT_ERR_INVALID_MANIFEST;
     }
 
@@ -134,17 +134,17 @@ int suit_validate_manifest(const suit_cbor_manifest_t *manifest,
     return SUIT_OK;
 }
 
-uuid_t *suit_get_vendor_id(void)
+uuid_t *suit_v1_get_vendor_id(void)
 {
     return &_conditions.vendor;
 }
 
-uuid_t *suit_get_class_id(void)
+uuid_t *suit_v1_get_class_id(void)
 {
     return &_conditions.class;
 }
 
-uuid_t *suit_get_device_id(void)
+uuid_t *suit_v1_get_device_id(void)
 {
     return &_conditions.device;
 }

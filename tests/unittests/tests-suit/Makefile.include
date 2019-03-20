@@ -1,2 +1,2 @@
-USEMODULE += suit_cbor
-USEMODULE += suit
+USEMODULE += suit_v1_cbor
+USEMODULE += suit_v1

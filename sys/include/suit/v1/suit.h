@@ -5,7 +5,6 @@
  * General Public License v2.1. See the file LICENSE in the top level
  * directory for more details.
  */
-
 /**
  * @ingroup     sys_suit
  * @brief       SUIT manifest handling
@@ -21,13 +20,13 @@
  * At the moment, only CBOR based SUIT manifests are supported
  */
 
-#ifndef SUIT_H
-#define SUIT_H
+#ifndef SUIT_V1_SUIT_H
+#define SUIT_V1_SUIT_H
 
 #include <stddef.h>
 #include <stdint.h>
 
-#include "suit/cbor.h"
+#include "suit/v1/cbor.h"
 #include "uuid.h"
 
 #ifdef __cplusplus
@@ -69,7 +68,7 @@ typedef enum {
     SUIT_ERR_COND               = -4,   /**< Conditionals evaluate to false */
     SUIT_ERR_SEQUENCE_NUMBER    = -5,   /**< Sequence number less or equal to
                                              current sequence number */
-} suit_error_t;
+} suit_v1_error_t;
 
 /**
  * @brief SUIT condition parameters
@@ -78,7 +77,7 @@ typedef struct {
     uuid_t vendor;  /**< Vendor url as UUID                  */
     uuid_t class;   /**< Device class UUID                   */
     uuid_t device;  /**< Device specific information as UUID */
-} suit_condition_params_t;
+} suit_v1_condition_params_t;
 
 /**
  * @brief Initialize boot-time conditions for SUIT manifests
@@ -90,7 +89,7 @@ typedef struct {
  * Device class UUID:    UUID5(vendor, SUIT_CLASS_ID)
  * Device specific UUID: UUID5(vendor, Device ID)
  */
-void suit_init_conditions(void);
+void suit_v1_init_conditions(void);
 
 /**
  * @brief Parse a manifest
@@ -103,9 +102,9 @@ void suit_init_conditions(void);
  * @param   len         length of the manifest data in the buffer
  *
  * @return              SUIT_OK on parseable manifest
- * @return              negative @ref suit_error_t code on error
+ * @return              negative @ref suit_v1_error_t code on error
  */
-int suit_parse(suit_cbor_manifest_t *manifest, uint8_t *buf, size_t len);
+int suit_v1_parse(suit_v1_cbor_manifest_t *manifest, uint8_t *buf, size_t len);
 
 /**
  * @brief Validate a manifest
@@ -120,35 +119,35 @@ int suit_parse(suit_cbor_manifest_t *manifest, uint8_t *buf, size_t len);
  *                              installed on this device
  *
  * @return              SUIT_OK when the manifest is valid and applicable
- * @return              negative @ref suit_error_t code on error
+ * @return              negative @ref suit_v1_error_t code on error
  */
-int suit_validate_manifest(const suit_cbor_manifest_t *manifest,
-                           uint32_t highest_seq_no);
+int suit_v1_validate_manifest(const suit_v1_cbor_manifest_t *manifest,
+                              uint32_t highest_seq_no);
 
 /**
  * @brief Retrieve the generated vendor ID
  *
  * @returns     The vendor ID as UUID
  */
-uuid_t *suit_get_vendor_id(void);
+uuid_t *suit_v1_get_vendor_id(void);
 
 /**
  * @brief Retrieve the generated class ID
  *
  * @returns     The class ID as UUID
  */
-uuid_t *suit_get_class_id(void);
+uuid_t *suit_v1_get_class_id(void);
 
 /**
  * @brief Retrieve the generated device ID
  *
  * @returns     The device ID as UUID
  */
-uuid_t *suit_get_device_id(void);
+uuid_t *suit_v1_get_device_id(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* SUIT_H */
+#endif /* SUIT_V1_SUIT_H */
 /** @} */
