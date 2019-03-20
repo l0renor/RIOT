@@ -3,23 +3,6 @@
 This example application shows how to integrate SUIT software updates into a
 RIOT application.
 
-## Sever and File System Variables
-
-The following variables are defined in makefiles/suit.inc.mk:
-
-    SUIT_COAP_BASEPATH ?= firmware/$(APPLICATION)/$(BOARD)    
-    SUIT_COAP_SERVER ?= localhost    
-    SUIT_COAP_ROOT ?= coap://$(SUIT_COAP_SERVER)/$(SUIT_COAP_BASEPATH)    
-    SUIT_COAP_FSROOT ?= $(RIOTBASE)/coaproot    
-
-All files (both slot binaries, both manifests, copies of manifests with 
-"latest" instead of $APP_VER in riotboot build) are copied into the folder 
-$(SUIT_COAP_FSROOT)/$(SUIT_COAP_BASEPATH). The manifests contain URLs to 
-$(SUIT_COAP_ROOT)/* and are signed that way.
-
-The whole tree under $(SUIT_COAP_FSROOT) is expected to be served via CoAP 
-under $(SUIT_COAP_ROOT). This can be done by e.g., "aiocoap-fileserver $(SUIT_COAP_FSROOT)".
-
 ## Prerequisites
 
 Dependencies:
@@ -39,7 +22,9 @@ If you don't choose to clone the repo locally you still need to download "aiocoa
 (*) cbor is installed as a dependy of aiocoap but is needed on its own if another 
 server is used.
 
-## Setup network
+# Setup
+
+### Setup network
 
 In one shell:
 
@@ -60,20 +45,22 @@ Start aiocoap-fileserver:
 If aiocoap was cloned and built from source aiocoap-filserver will be located
 at <AIOCOAP_BASE_DIR>/aiocoap/contrib.
 
-## Initial flash
+### Initial flash
 
 In order to get a SUIT capable firmware onto the node, do (with in the RIOT
 checkout root folder):
 
     $ BOARD=samr21-xpro make -C examples/suit_update clean riotboot/flash -j4
 
-## Key Generation
+### Key Generation
 
-To sign the manifest a key must be generated. Execute from the application folder:
+To sign the manifest a key must be generated.
+
+In examples/suit_update:
 
     $ BOARD=samr21-xpro make suit/genkey
 
-## Publish
+### Publish
 
 Currently, the build system assumes that it can publish files by simply copying
 them to a configurable folder. For this example, aiocoap-fileserver will then
@@ -88,7 +75,7 @@ In examples/suit_update:
 
 This wil publish into the server new firmware for a samr21-xpro board.
 
-## Notify node
+### Notify node
 
 If the network has been started as described above, the RIOT node should be
 reachable via link-local "fe80::2" on the ethos interface.
@@ -96,6 +83,79 @@ reachable via link-local "fe80::2" on the ethos interface.
     $ SUIT_COAP_SERVER='[fd01::1]' SUIT_CLIENT=[fe80::2%riot0] BOARD=samr21-xpro make suit/notify
 
 This will notify the node of new availale maifest and it will fetch it.
+
+# In depth explanation
+
+## Node
+
+## Network
+
+## Sever and File System Variables
+
+The following variables are defined in makefiles/suit.inc.mk:
+
+    SUIT_COAP_BASEPATH ?= firmware/$(APPLICATION)/$(BOARD)
+    SUIT_COAP_SERVER ?= localhost
+    SUIT_COAP_ROOT ?= coap://$(SUIT_COAP_SERVER)/$(SUIT_COAP_BASEPATH)
+    SUIT_COAP_FSROOT ?= $(RIOTBASE)/coaproot
+
+The following convention is used when naming a manifest
+
+    SLOTx_SUIT_MANIFEST ?= $(BINDIR_APP)-slotx.riot.suit.$(APP_VER).bin
+    SLOTx_SUIT_MANIFEST_LATEST ?= $(BINDIR_APP)-slotx.riot.suit.latest.bin
+
+The following default values are using for generating the manifest:
+
+    SUIT_VENDOR ?= RIOT
+    SUIT_VERSION ?= $(APP_VER)
+    SUIT_DEVICE_ID ?= $(BOARD)
+    SUIT_KEY ?= secret.key
+
+All files (both slot binaries, both manifests, copies of manifests with
+"latest" instead of $APP_VER in riotboot build) are copied into the folder
+$(SUIT_COAP_FSROOT)/$(SUIT_COAP_BASEPATH). The manifests contain URLs to
+$(SUIT_COAP_ROOT)/* and are signed that way.
+
+The whole tree under $(SUIT_COAP_FSROOT) is expected to be served via CoAP 
+under $(SUIT_COAP_ROOT). This can be done by e.g., "aiocoap-fileserver $(SUIT_COAP_FSROOT)".
+
+## Makefile recipes
+
+The following recipes are defined in makfiles/suit.inc.mk
+
+suit/manifest: creates manifest for all slots and "latest" tag of each,
+    uses following parameters:
+
+    - $(SUIT_KEY): key to sign the manifest
+	- $(SUIT_COAP_ROOT): coap root address
+	- $(SUIT_DEVICE_ID)
+	- $(SUIT_VERSION)
+	- $(SUIT_VENDOR)
+
+suit/publish: makes the suit manifest, slotx bin and publishes it to the
+    aiocoap-fileserver
+
+    1.- builds slot0 and slot1 bin's
+    2.- builds manifest
+    3.- creates $(SUIT_COAP_FSROOT)/$(SUIT_COAP_BASEPATH) directory
+    4.- copy's binaries to $(SUIT_COAP_FSROOT)/$(SUIT_COAP_BASEPATH)
+    - $(SUIT_COAP_ROOT): root url for the coap resources
+
+suit/notify: triggers a device update, it sends two requests:
+
+    1.- COAP get to check which slot is active on the device
+    2.- COAP POST with the url where to fetch the latest manifest for
+    the active slot
+
+    - $(SUIT_CLIENT): define the client ipv6 address
+    - $(SUIT_COAP_ROOT): root url for the coap resources
+    - $(SLOTx_SUIT_MANIFEST_LATEST): name of the resource where the slotx
+    manifest is exposed.
+
+suit/genkey: this recipe generates a ed25519 key to sign the manifest
+
+**NOTE: to plugin a new server you would only have to change the suit/publish
+recipe, respecting or adjusting to the naming conventions.**
 
 # Todo
 
