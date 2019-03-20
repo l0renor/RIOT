@@ -7,6 +7,10 @@ This tool can be used to generate a manifest according [draft-moran-suit-manifes
 V1 Manifest Generator requires Python 3 (>= 3.5).
 All requirements can be installed with [pip](https://github.com/pypa/pip).
 
+0. When using python applications it is usually sugested to use virtual
+environments. You can find instructions to set this up [here](https://virtualenvwrapper.readthedocs.io/en/latest/install.html) or [here](https://virtualenv.pypa.io/en/latest/installation/). If you do any of those
+options you can skip 1 and just set up a virtual env for this project.
+
 1. Install pip for Python 3 using:
 
     $ wget -qO - https://bootstrap.pypa.io/get-pip.py | python3
