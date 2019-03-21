@@ -1,7 +1,8 @@
 # Overview
 
 This example application shows how to integrate SUIT software updates into a
-RIOT application.
+RIOT application. This application will only be implementing basic v1 support of
+the [draft-moran-suit-manifest-00](https://datatracker.ietf.org/doc/draft-moran-suit-manifest/00/).
 
 ## Prerequisites
 
@@ -13,13 +14,13 @@ Dependencies:
               - aiocoap > 0.4
 
 When this was implemented aiocoap > 0.4 must be built from source you can follow 
-instalation instructions here https://aiocoap.readthedocs.io/en/latest/installation.html. 
+installation instructions here https://aiocoap.readthedocs.io/en/latest/installation.html.
 If you don't choose to clone the repo locally you still need to download "aiocoap-filesever"
  from https://github.com/chrysn/aiocoap/blob/master/contrib/aiocoap-fileserver.
 
 - RIOT repository checked out into $RIOTBASE
 
-(*) cbor is installed as a dependy of aiocoap but is needed on its own if another 
+(*) cbor is installed as a dependency of aiocoap but is needed on its own if another
 server is used.
 
 # Setup
@@ -92,21 +93,147 @@ reachable via link-local "fe80::2" on the ethos interface.
 
     $ SUIT_COAP_SERVER='[fd01::1]' SUIT_CLIENT=[fe80::2%riot0] BOARD=samr21-xpro make suit/notify
 
-This will notify the node of new availale maifest and it will fetch it.
+This will notify the node of new available manifest and it will fetch it.
 
 # In depth explanation
 
 ## Node
 
+For the suit_update to work there are important block that aren't normally built
+in a RIOT application:
+
+* riotboot
+    * riotboot_hdr
+* riotboot_slot
+* suit
+    * suit_coap
+    * suit_v1
+
+### riotboot
+
+To be able to receive updates, the firmware on the device needs a bootloader
+that can decide from witch of the firmware images (new one and olds ones) to boot.
+
+For suit updates you need at least two slots in the current conception on riotboot.
+The flash memory will be divided in the following way:
+
+```
+|------------------------------- FLASH ------------------------------------------------------------|
+|-RIOTBOOT_LEN-|------ RIOTBOOT_SLOT_SIZE (slot 0) ------|------ RIOTBOOT_SLOT_SIZE (slot 1) ------|
+               |----- RIOTBOOT_HDR_LEN ------|           |----- RIOTBOOT_HDR_LEN ------|
+ --------------------------------------------------------------------------------------------------|
+|   riotboot   | riotboot_hdr_1 + filler (0) | slot_0_fw | riotboot_hdr_2 + filler (0) | slot_1_fw |
+ --------------------------------------------------------------------------------------------------|
+```
+
+The riotboot part of the flash will not be changed during suit_updates but
+be flashed a first time with at least one slot with suit_capable fw.
+
+    $ BOARD=samr21-xpro make -C examples/suit_update clean riotboot/flash
+
+When calling make with the riotboot/flash argument it will flash the bootloader
+and then to slot0 a copy of the firmware you intend to build.
+
+New images must be of course written to the inactive slot, the device mist be able
+to boot from the previous image in case the update had some kind of error, eg:
+the image corresponds to the wrong slot.
+
+The active/inactive coap resources is used so the publisher can send a manifest
+built for the inactive slot.
+
+On boot the bootloader will check the riotboot_hdr and boot on the newest
+image.
+
+riotboot is not supported by all boards. Current supported boards are:
+
+* saml21-xpro
+* samr21-xpro
+* nucleo-l152re
+* iotlab-a8
+* iotlab-m3
+* nrfxxx
+
+
+### suit
+
+The suit module encloses all the other suit_related module. Formally this only
+includes the sys/suit directory into the build system dirs.
+
+#### suit_coap
+
+To enable support for suit_updates over coap a new thread is created.
+This thread will expose 4 suit related resources:
+-=
+* /suit/slot/active: a resource that returns the number of their active slot
+* /suit/slot/inactive: a resource that returns the number of their inactive slot
+* /suit/trigger: this resource allows POST/PUT where the payload is assumed
+tu be a url with the location of a manifest for a new firmware update on the
+inactive slot.
+* /suit/version: this resource is currently not implemented and return "NONE",
+it should return the version of the application running on the device.
+
+When a new manifest url is received on the trigger resource a message is resent
+to the coap thread with the manifest's url. The thread will then fetch the
+manifest by a block coap request to the specified url.
+
+If suit_v1 is included the manifest will also be parsed.
+
+#### suit_v1
+
+This includes v1 manifest support. When a url is received in the /suit/trigger
+coap resource it will trigger a coap blockwise fetch of the manifest. When this
+manifest is received it will be parsed. If the received manifest is valid it
+will extract the url for the firmware location from the manifest.
+
+It will then fetch the firmware, write it to the inactive slot and reboot the device.
+From there the bootloader takes over, verifying the slot riotboot_hdr and boots
+from the newest image.
+
+#### pending v1 support
+
+Once the firmware location url is parsed it should fetch the firmware and copy it
+to the inactive slot. After copying ti should reboot so the device can boot
+from the new firmware image. This is handled by riotboot module.
+
+#### support for v4
+
+To support v4 most of the infrastructure is kept the same, you would have
+to implement handling of a v4 manifest and add it to _suit_handle_url() in
+sys/suit/coap.c.
+
 ## Network
 
 For connecting the device with the internet we are using ethos (a simple
-etehernet over serial driver).
+ethernet over serial driver).
 
 When executing $RIOTBASE/dist/tools/ethos:
+
     $ sudo ./start_network.sh /dev/ttyACM0 riot0 fd00::1/64
-A tap interface called riot0 is setup and configures fd00::1/64 as a prefix
-for the
+
+A tap interface named "riot0" is setup. fe80::1/64 is set up as it's
+link local address and fd00:dead:beef::1/128 as the "lo" unique link local address.
+
+Also fd00::1/64 is configured- as a prefix for the network. It also sets-up
+a route to the fd00::1/64 subnet threw fe80::2. Where fe80::2 is the default
+link local address of the UHCP interface.
+
+Finally when:
+
+    $ sudo ip address add fd01::1/128 dev riot0
+
+We are adding a routable address to the riot0 tap interface. The device can
+now send messages to the the coap server threw the riot0 tap interface. You could
+use a different address for the coap server as long as you also add a routable
+address, so:
+
+    $ sudo ip address add $(SUIT_COAP_SERVER) dev riot0
+
+NOTE: if we weren't using a local server you would need to have ipv6 support
+on your network or use tunneling.
+
+NOTE: using fd00:dead:beef::1 as an address for the coap server would also
+work and you would;t need to add a routable address to the tap interface since
+a route to the loopback interface (lo) is already configured.
 
 ## Sever and File System Variables
 
@@ -139,7 +266,7 @@ under $(SUIT_COAP_ROOT). This can be done by e.g., "aiocoap-fileserver $(SUIT_CO
 
 ## Makefile recipes
 
-The following recipes are defined in makfiles/suit.inc.mk
+The following recipes are defined in makefiles/suit.inc.mk
 
 suit/manifest: creates manifest for all slots and "latest" tag of each,
     uses following parameters:
@@ -161,9 +288,9 @@ suit/publish: makes the suit manifest, slotx bin and publishes it to the
 
 suit/notify: triggers a device update, it sends two requests:
 
-    1.- COAP get to check which slot is active on the device
+    1.- COAP get to check which slot is inactive on the device
     2.- COAP POST with the url where to fetch the latest manifest for
-    the active slot
+    the inactive slot
 
     - $(SUIT_CLIENT): define the client ipv6 address
     - $(SUIT_COAP_ROOT): root url for the coap resources
@@ -174,9 +301,3 @@ suit/genkey: this recipe generates a ed25519 key to sign the manifest
 
 **NOTE: to plugin a new server you would only have to change the suit/publish
 recipe, respecting or adjusting to the naming conventions.**
-
-# Todo
-
-* Parse the Manifest
-* Fetch and Store Firmware
-* Reboot and boot from new firmware
