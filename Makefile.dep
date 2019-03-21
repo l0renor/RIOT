@@ -830,12 +830,13 @@ ifneq (,$(filter suit_v1_%,$(USEMODULE)))
   USEMODULE += suit_v1
 endif
 
-ifneq (,$(filter suit_v1_cbor,$(USEMODULE)))
-  USEPKG += tinycbor
-endif
-
 ifneq (,$(filter suit_v1,$(USEMODULE)))
   USEMODULE += uuid
+  USEMODULE += suit_v1_cbor
+endif
+
+ifneq (,$(filter suit_v1_cbor,$(USEMODULE)))
+  USEPKG += tinycbor
 endif
 
 # Enable periph_gpio when periph_gpio_irq is enabled
