@@ -2,7 +2,7 @@
 
 This example application shows how to integrate SUIT software updates into a
 RIOT application. This application will only be implementing basic v1 support of
-the [draft-moran-suit-manifest-00](https://datatracker.ietf.org/doc/draft-moran-suit-manifest/00/).
+the [draft-moran-suit-manifest-00](https://datatracker.ietf.org/doc/draft-moran-suit-manifest/01/).
 
 ## Prerequisites
 
@@ -27,10 +27,9 @@ server is used.
 
 ### Initial flash
 
-In order to get a SUIT capable firmware onto the node, do (with in the RIOT
-checkout root folder):
+In order to get a SUIT capable firmware onto the node. In examples/suit_update:
 
-    $ BOARD=samr21-xpro make -C examples/suit_update clean riotboot/flash -j4
+    $ BOARD=samr21-xpro make  clean riotboot/flash -j4
 
 ### Setup network
 
@@ -48,6 +47,23 @@ In one shell and with the board already flashed and connected to /dev/ttyACM0:
 
     $ cd $RIOTBASE/dist/tools/ethos
     $ sudo ./start_network.sh /dev/ttyACM0 riot0 fd00::1/64
+
+Once everyhting is configured you will get:
+
+    ...
+
+    Iface  7  HWaddr: 00:22:09:17:DD:59
+            L2-PDU:1500 MTU:1500  HL:64  RTR
+            Source address length: 6
+            Link type: wired
+            inet6 addr: fe80::222:9ff:fe17:dd59  scope: local  TNT[1]
+            inet6 addr: fe80::2  scope: local  VAL
+            inet6 group: ff02::2
+            inet6 group: ff02::1
+            inet6 group: ff02::1:ff17:dd59
+            inet6 group: ff02::1:ff00:2
+
+    suit_coap: started.
 
 Keep this running (don't close the shell).
 
@@ -71,6 +87,10 @@ In examples/suit_update:
 
     $ BOARD=samr21-xpro make suit/genkey
 
+You will get this message in the terminal:
+
+    the public key is b'a0fc7fe714d0c81edccc50c9e3d9e6f9c72cc68c28990f235ede38e4553b4724'
+
 ### Publish
 
 Currently, the build system assumes that it can publish files by simply copying
@@ -84,7 +104,15 @@ In examples/suit_update:
 
     $ BOARD=samr21-xpro SUIT_COAP_SERVER=[fd01::1] make suit/publish
 
-This wil publish into the server new firmware for a samr21-xpro board.
+This will publish into the server new firmware for a samr21-xpro board. You should
+see 6 pairs of messages indicating where (filepath) the file was published and
+the coap resource URI
+
+    ...
+    published "/home/francisco/workspace/RIOT/examples/suit_update/bin/samr21-xpro/suit_update-slot0.riot.suit.1553182001.bin"
+        as "coap://[fd01::1]/fw/samr21-xpro/suit_update-slot0.riot.suit.1553182001.bin"
+    ...
+
 
 ### Notify node
 
@@ -93,7 +121,24 @@ reachable via link-local "fe80::2" on the ethos interface.
 
     $ SUIT_COAP_SERVER='[fd01::1]' SUIT_CLIENT=[fe80::2%riot0] BOARD=samr21-xpro make suit/notify
 
-This will notify the node of new available manifest and it will fetch it.
+This will notify the node of new available manifest and it will fetch it. It will
+take some time to fetch and write to flash, you will a series of messages like:
+
+    ....
+    riotboot_flashwrite: processing bytes 1344-1407
+    riotboot_flashwrite: processing bytes 1408-1471
+    riotboot_flashwrite: processing bytes 1472-1535
+    ...
+
+Once the new image is written, the device will reboot and display:
+
+    main(): This is RIOT! (Version: 2019.04-devel-606-gaa7b-ota_suit_v2)
+    RIOT SUIT update example application
+    running from slot 1
+    Waiting for address autoconfiguration...
+
+The slot number should have changed form when you started the application.
+You can do the publish-notify sequence again to verify this.
 
 # In depth explanation
 
