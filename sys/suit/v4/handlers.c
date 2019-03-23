@@ -19,6 +19,7 @@
 
 #include "suit/v4/suit.h"
 #include "suit/v4/handlers.h"
+#include "suit/v4/policy.h"
 #include "cbor.h"
 
 #define HELLO_HANDLER_MAX_STRLEN 32
@@ -52,7 +53,13 @@ static int _version_handler(suit_v4_manifest_t *manifest, int key,
     int version = -1;
     if (cbor_value_is_integer(it) &&
         (cbor_value_get_int(it, &version) == CborNoError)) {
-        return version == SUIT_VERSION ? 0 : -1;
+        if (version == SUIT_VERSION) {
+            manifest->validated |= SUIT_VALIDATED_VERSION;
+            return 0;
+        }
+        else {
+            return -1;
+        }
     }
     return 1;
 }
