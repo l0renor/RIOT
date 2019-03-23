@@ -23,20 +23,24 @@
 
 #define HELLO_HANDLER_MAX_STRLEN 32
 
-static int _hello_handler(suit_v4_manifest_t *manifest, int key,
-                            CborValue *it)
+static int _hello_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
 {
     (void)manifest;
     (void)key;
 
-    uint8_t buf[HELLO_HANDLER_MAX_STRLEN];
+    char buf[HELLO_HANDLER_MAX_STRLEN];
     size_t len = HELLO_HANDLER_MAX_STRLEN;
 
-    if (cbor_value_is_byte_string(it)) {
-        cbor_value_copy_byte_string(it, buf, &len, NULL);
+    if (cbor_value_is_text_string(it)) {
+        cbor_value_copy_text_string(it, buf, &len, NULL);
         printf("HELLO: \"%.*s\"\n", len, buf);
+        return SUIT_OK;
     }
-    return SUIT_OK;
+    else {
+        printf("_hello_handler(): unexpected value type: %u\n", cbor_value_get_type(
+                   it));
+        return -1;
+    }
 }
 
 static int _version_handler(suit_v4_manifest_t *manifest, int key,
@@ -53,8 +57,7 @@ static int _version_handler(suit_v4_manifest_t *manifest, int key,
     return 1;
 }
 
-static int _seq_no_handler(suit_v4_manifest_t *manifest, int key,
-                           CborValue *it)
+static int _seq_no_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
 {
     (void)manifest;
     (void)key;
@@ -74,8 +77,7 @@ static int _dependencies_handler(suit_v4_manifest_t *manifest, int key,
     return 0;
 }
 
-static int _common_handler(suit_v4_manifest_t *manifest, int key,
-                           CborValue *it)
+static int _common_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
 {
     (void)manifest;
     (void)key;
@@ -112,10 +114,12 @@ static suit_manifest_handler_t global_handlers[] = {
 };
 /* end{code-style-ignore} */
 
-static const unsigned global_handlers_len = sizeof(global_handlers) / sizeof(global_handlers[0]);
+static const unsigned global_handlers_len = sizeof(global_handlers) /
+                                            sizeof(global_handlers[0]);
 
 suit_manifest_handler_t _suit_manifest_get_handler(int key,
-    const suit_manifest_handler_t *handlers, size_t len)
+                                                   const suit_manifest_handler_t *handlers,
+                                                   size_t len)
 {
     if (key < 0 || (size_t)key >= len) {
         return NULL;
@@ -125,5 +129,6 @@ suit_manifest_handler_t _suit_manifest_get_handler(int key,
 
 suit_manifest_handler_t suit_manifest_get_handler(int key)
 {
-    return _suit_manifest_get_handler(key, global_handlers, global_handlers_len);
+    return _suit_manifest_get_handler(key, global_handlers,
+                                      global_handlers_len);
 }
