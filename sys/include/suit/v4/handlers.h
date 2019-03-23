@@ -21,8 +21,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "suit/v4/cbor.h"
+#include "suit/v4/suit.h"
 #include "uuid.h"
+#include "cbor.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,7 +38,17 @@ extern "C" {
  * @return          1 on success
  * @return          negative on error
  */
-typedef int (*suit_manifest_handler)(suit_manifest_t *manifest, int key, CborValue *it);
+typedef int (*suit_manifest_handler)(suit_v4_manifest_t *manifest, int key, CborValue *it);
+
+/**
+ * @brief    Get suit manifest handler for given integer key
+ *
+ * @param[in]   key: integer key
+ *
+ * @return      ptr to handler function
+ * @return      NULL (if handler unavailable or key out of range)
+ */
+suit_manifest_handler_t suit_manifest_get_handler(int key);
 
 #ifdef __cplusplus
 }
