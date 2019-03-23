@@ -31,11 +31,9 @@
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
-int suit_v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
-                       size_t len)
+static int _v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
+                       size_t len, suit_manifest_handler_getter_t getter)
 {
-    manifest->buf = buf;
-    manifest->len = len;
 
     CborParser parser;
     CborValue it, map;
@@ -47,7 +45,7 @@ int suit_v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
     }
 
     if (!cbor_value_is_map(&it)) {
-        puts("suit_v4_parse(): manifest not an array");
+        puts("suit_v4_parse(): manifest not an map");
         return SUIT_ERR_INVALID_MANIFEST;
     }
 
@@ -73,7 +71,7 @@ int suit_v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
         }
 
         printf("got key val=%i\n", integer_key);
-        suit_manifest_handler_t handler = suit_manifest_get_handler(integer_key);
+        suit_manifest_handler_t handler = getter(integer_key);
 
         if (handler) {
             int res = handler(manifest, integer_key, &value);
@@ -100,4 +98,12 @@ int suit_v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
     }
 
     return SUIT_OK;
+}
+
+int suit_v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
+                       size_t len)
+{
+    manifest->buf = buf;
+    manifest->len = len;
+    return _v4_parse(manifest, buf, len, suit_manifest_get_manifest_handler);
 }

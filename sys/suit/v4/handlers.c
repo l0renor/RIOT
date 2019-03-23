@@ -32,6 +32,18 @@
 static int _handle_command_sequence(suit_v4_manifest_t *manifest, CborValue *it,
         suit_manifest_handler_t handler);
 
+static int _cbor_get_string(const CborValue *it, const uint8_t **buf, size_t *len)
+{
+    if (!(cbor_value_is_text_string(it) || cbor_value_is_byte_string(it) || cbor_value_is_length_known(it))) {
+        return -1;
+    }
+    CborValue next = *it;
+    cbor_value_get_string_length(it, len);
+    cbor_value_advance(&next);
+    *buf = next.ptr - *len;
+    return 0;
+}
+
 static int _hello_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
 {
     (void)manifest;
@@ -189,22 +201,41 @@ suit_manifest_handler_t _suit_manifest_get_handler(int key,
     return handlers[key];
 }
 
-suit_manifest_handler_t suit_manifest_get_handler(int key)
+suit_manifest_handler_t suit_manifest_get_manifest_handler(int key)
 {
     return _suit_manifest_get_handler(key, global_handlers,
                                       global_handlers_len);
 }
 
-int _handle_command_sequence(suit_v4_manifest_t *manifest, CborValue *it,
+int _handle_command_sequence(suit_v4_manifest_t *manifest, CborValue *bseq,
         suit_manifest_handler_t handler)
 {
 
-    CborValue arr;
-    if (!cbor_value_is_array(it)) {
-        printf("Not an array\n");
+    if (!cbor_value_is_byte_string(bseq)) {
+        printf("Not an byte array\n");
         return -1;
     }
-    cbor_value_enter_container(it, &arr);
+
+    const uint8_t *sequence;
+    size_t seq_len;
+    CborParser parser;
+    CborValue it, arr;
+
+    if (!cbor_value_is_byte_string(bseq)) {
+        printf("Not an byte array\n");
+        return -1;
+    }
+    _cbor_get_string(bseq, &sequence, &seq_len);
+    CborError err = cbor_parser_init(sequence, seq_len, SUIT_TINYCBOR_VALIDATION_MODE,
+                                     &parser, &it);
+    if (err < 0) {
+        return err;
+    }
+    if (!cbor_value_is_array(&it)) {
+        printf("Not an byte array\n");
+        return -1;
+    }
+    cbor_value_enter_container(&it, &arr);
 
     while (!cbor_value_at_end(&arr)) {
         CborValue map;
