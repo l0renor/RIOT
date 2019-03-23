@@ -54,7 +54,7 @@ extern "C" {
  * @brief Supported SUIT manifest version
  */
 #define SUIT_MANIFEST_VERSION        4
-#define SUIT_VERSION        4
+#define SUIT_VERSION        1
 
 /**
  * @brief SUIT error codes

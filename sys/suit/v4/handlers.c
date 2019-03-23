@@ -32,7 +32,7 @@
 static int _handle_command_sequence(suit_v4_manifest_t *manifest, CborValue *it,
         suit_manifest_handler_t handler);
 
-static int _cbor_get_string(const CborValue *it, const uint8_t **buf, size_t *len)
+int suit_cbor_get_string(const CborValue *it, const uint8_t **buf, size_t *len)
 {
     if (!(cbor_value_is_text_string(it) || cbor_value_is_byte_string(it) || cbor_value_is_length_known(it))) {
         return -1;
@@ -191,7 +191,7 @@ static suit_manifest_handler_t global_handlers[] = {
 static const unsigned global_handlers_len = sizeof(global_handlers) /
                                             sizeof(global_handlers[0]);
 
-suit_manifest_handler_t _suit_manifest_get_handler(int key,
+static suit_manifest_handler_t _suit_manifest_get_handler(int key,
                                                    const suit_manifest_handler_t *handlers,
                                                    size_t len)
 {
@@ -225,7 +225,7 @@ int _handle_command_sequence(suit_v4_manifest_t *manifest, CborValue *bseq,
         printf("Not an byte array\n");
         return -1;
     }
-    _cbor_get_string(bseq, &sequence, &seq_len);
+    suit_cbor_get_string(bseq, &sequence, &seq_len);
     CborError err = cbor_parser_init(sequence, seq_len, SUIT_TINYCBOR_VALIDATION_MODE,
                                      &parser, &it);
     if (err < 0) {

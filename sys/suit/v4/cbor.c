@@ -31,6 +31,8 @@
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
+static suit_manifest_handler_t _manifest_get_auth_wrapper_handler(int key);
+
 static int _v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
                        size_t len, suit_manifest_handler_getter_t getter)
 {
@@ -105,5 +107,51 @@ int suit_v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
 {
     manifest->buf = buf;
     manifest->len = len;
-    return _v4_parse(manifest, buf, len, suit_manifest_get_manifest_handler);
+    return _v4_parse(manifest, buf, len, _manifest_get_auth_wrapper_handler);
 }
+
+static int _auth_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
+{
+    (void)manifest;
+    (void)key;
+    (void)it;
+    return 0;
+}
+
+static int _manifest_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
+{
+    (void)key;
+    const uint8_t *manifest_buf;
+    size_t manifest_len;
+    suit_cbor_get_string(it, &manifest_buf, &manifest_len);
+    return _v4_parse(manifest, manifest_buf,
+                       manifest_len, suit_manifest_get_manifest_handler);
+}
+
+static suit_manifest_handler_t _suit_manifest_get_handler(int key,
+                                                   const suit_manifest_handler_t *handlers,
+                                                   size_t len)
+{
+    if (key < 0 || (size_t)key >= len) {
+        return NULL;
+    }
+    return handlers[key];
+}
+
+/* begin{code-style-ignore} */
+static suit_manifest_handler_t _auth_handlers[] = {
+    [ 0] = NULL,
+    [ 1] = _auth_handler,
+    [ 2] = _manifest_handler,
+};
+/* end{code-style-ignore} */
+
+static const unsigned _auth_handlers_len = sizeof(_auth_handlers) /
+                                            sizeof(_auth_handlers[0]);
+
+static suit_manifest_handler_t _manifest_get_auth_wrapper_handler(int key)
+{
+    return _suit_manifest_get_handler(key, _auth_handlers,
+                                      _auth_handlers_len);
+}
+

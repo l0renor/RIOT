@@ -40,6 +40,9 @@ extern "C" {
  */
 typedef int (*suit_manifest_handler_t)(suit_v4_manifest_t *manifest, int key, CborValue *it);
 
+suit_manifest_handler_t suit_manifest_get_manifest_handler(int key);
+
+int suit_cbor_get_string(const CborValue *it, const uint8_t **buf, size_t *len);
 /**
  * @brief    Get suit manifest handler for given integer key
  *
@@ -50,6 +53,7 @@ typedef int (*suit_manifest_handler_t)(suit_v4_manifest_t *manifest, int key, Cb
  */
 suit_manifest_handler_t suit_manifest_get_handler(int key);
 
+typedef suit_manifest_handler_t (*suit_manifest_handler_getter_t)(int key);
 #ifdef __cplusplus
 }
 #endif
