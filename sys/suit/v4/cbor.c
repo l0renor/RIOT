@@ -76,10 +76,14 @@ int suit_v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
 
         if (handler) {
             int res = handler(manifest, integer_key, &value);
+            printf("handler res=%i\n", res);
             if (res < 0) {
                 puts("handler returned <0");
                 return SUIT_ERR_INVALID_MANIFEST;
             }
+        }
+        else {
+            printf("no handler found\n");
         }
 
         cbor_value_advance(&map);
