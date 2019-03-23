@@ -31,14 +31,60 @@
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
+
 static suit_manifest_handler_t _manifest_get_auth_wrapper_handler(int key);
+
+int cbor_map_iterate_init(CborValue *map, CborValue *it)
+{
+    if (!cbor_value_is_map(it)) {
+        puts("suit_v4_parse(): manifest not an map");
+        return SUIT_ERR_INVALID_MANIFEST;
+    }
+
+    cbor_value_enter_container(it, map);
+
+    return SUIT_OK;
+}
+
+int cbor_map_iterate(CborValue *it, CborValue *key, CborValue *value)
+{
+    if (cbor_value_at_end(it)) {
+        return 0;
+    }
+
+    *key = *it;
+    cbor_value_advance(it);
+
+    *value = *it;
+    cbor_value_advance(it);
+
+    return 1;
+}
+
+int cbor_get_int_key(CborValue *key, int *integer_key)
+{
+    if (!cbor_value_is_integer(key)) {
+        printf("expected integer key type, got %u\n", cbor_value_get_type(key));
+        return SUIT_ERR_INVALID_MANIFEST;
+    }
+
+    /* This check tests whether the integer fits into "int", thus the check
+     * is platform dependent. This is for lack of specification of actually
+     * allowed values, to be made explicit at some point. */
+    if (cbor_value_get_int_checked(key, integer_key) == CborErrorDataTooLarge) {
+        printf("integer key doesn't fit into int type\n");
+        return SUIT_ERR_INVALID_MANIFEST;
+    }
+
+    return SUIT_OK;
+}
 
 static int _v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
                        size_t len, suit_manifest_handler_getter_t getter)
 {
 
     CborParser parser;
-    CborValue it, map;
+    CborValue it, map, key, value;
     CborError err = cbor_parser_init(buf, len, SUIT_TINYCBOR_VALIDATION_MODE,
                                      &parser, &it);
 
@@ -46,32 +92,20 @@ static int _v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
         return SUIT_ERR_INVALID_MANIFEST;
     }
 
-    if (!cbor_value_is_map(&it)) {
-        puts("suit_v4_parse(): manifest not an map");
+    map = it;
+
+    if (cbor_map_iterate_init(&map, &it) != SUIT_OK) {
+        printf("manifest not map!\n");
         return SUIT_ERR_INVALID_MANIFEST;
     }
 
-    cbor_value_enter_container(&it, &map);
+    puts("jumping into map");
 
-    while (!cbor_value_at_end(&map)) {
-        CborValue key, value;
-        key = map;
-        cbor_value_advance(&map);
-        value = map;
-
-        if (!cbor_value_is_integer(&key)) {
-            printf("expected integer key type, got %u\n", cbor_value_get_type(&key));
+    while (cbor_map_iterate(&map, &key, &value)) {
+        int integer_key;
+        if (cbor_get_int_key(&key, &integer_key) != SUIT_OK){
             return SUIT_ERR_INVALID_MANIFEST;
         }
-
-        /* This check tests whether the integer fits into "int", thus the check
-         * is platform dependent. This is for lack of specification of actually
-         * allowed values, to be made explicit at some point. */
-        int integer_key;
-        if (cbor_value_get_int_checked(&key, &integer_key) == CborErrorDataTooLarge) {
-            printf("integer key doesn't fit into int type\n");
-        }
-
         printf("got key val=%i\n", integer_key);
         suit_manifest_handler_t handler = getter(integer_key);
 
@@ -86,8 +120,6 @@ static int _v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
         else {
             printf("no handler found\n");
         }
-
-        cbor_value_advance(&map);
     }
 
     cbor_value_leave_container(&map, &it);
@@ -154,4 +186,3 @@ static suit_manifest_handler_t _manifest_get_auth_wrapper_handler(int key)
     return _suit_manifest_get_handler(key, _auth_handlers,
                                       _auth_handlers_len);
 }
-

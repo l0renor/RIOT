@@ -7,8 +7,8 @@ USEPKG += tinycbor
 USEMODULE += riotboot_slot riotboot_hdr
 FEATURES_REQUIRED += riotboot
 
-manifest.cbor: manifest.yaml
-	python yaml2cbor.py $< $@
+#manifest.cbor: manifest.yaml
+#	python yaml2cbor.py $< $@
 
 manifest.cbor.h: manifest.cbor
 	xxd -i $< $@

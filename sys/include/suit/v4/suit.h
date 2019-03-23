@@ -31,6 +31,8 @@
 extern "C" {
 #endif
 
+#define SUIT_V4_COMPONENT_MAX 1
+
 /**
  * @brief The SUIT vendor ID source
  *
@@ -120,6 +122,15 @@ typedef enum {
 } suit_v4_digest_type_t;
 
 /**
+ * @brief SUIT v4 component struct
+ */
+typedef struct {
+    size_t size;
+    char *url;
+    char *digest;
+} suit_v4_component_t;
+
+/**
  * @brief SUIT manifest struct
  */
 typedef struct {
@@ -127,7 +138,11 @@ typedef struct {
     size_t len;         /**< length of the manifest */
     uint32_t validated; /**< bitfield of validated policies */
     uint32_t state;     /**< bitfield holding state information */
-    CborValue components;
+
+    suit_v4_component_t components[SUIT_V4_COMPONENT_MAX];
+    unsigned components_len;
+    int component_current;
+
 } suit_v4_manifest_t;
 
 #define SIOT_MANIFEST_HAVE_COMPONENTS 0x1
@@ -151,6 +166,9 @@ void suit_v4_init_conditions(void);
 uuid_t *suit_v4_get_vendor_id(void);
 uuid_t *suit_v4_get_class_id(void);
 uuid_t *suit_v4_get_device_id(void);
+
+int cbor_map_iterate_init(CborValue *map, CborValue *it);
+int cbor_map_iterate(CborValue *map, CborValue *key, CborValue *value);
 
 #ifdef __cplusplus
 }

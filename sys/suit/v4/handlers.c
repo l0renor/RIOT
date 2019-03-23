@@ -165,8 +165,32 @@ static int _component_handler(suit_v4_manifest_t *manifest, int key,
 {
     (void)manifest;
     (void)key;
-    (void)it;
-    return 1;
+
+    CborValue arr;
+
+    puts("storing components");
+    if (!cbor_value_is_array(it)) {
+        printf("components field not an array\n");
+        return -1;
+    }
+    cbor_value_enter_container(it, &arr);
+
+    unsigned n = 0;
+    while (!cbor_value_at_end(&arr)) {
+        CborValue map, key, value;
+
+        cbor_map_iterate_init(&map, &arr);
+
+        while (cbor_map_iterate(&map, &key, &value)) {
+            // handle key, value
+            (void)n;
+        }
+    }
+
+    manifest->state |= SIOT_MANIFEST_HAVE_COMPONENTS;
+    cbor_value_enter_container(&arr, it);
+
+    return 0;
 }
 
 /* begin{code-style-ignore} */
@@ -217,7 +241,7 @@ int _handle_command_sequence(suit_v4_manifest_t *manifest, CborValue *bseq,
     }
 
     const uint8_t *sequence;
-    size_t seq_len;
+    size_t seq_len = 0;
     CborParser parser;
     CborValue it, arr;
 
