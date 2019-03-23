@@ -17,7 +17,9 @@
  * @}
  */
 
+#include "suit/v4/suit.h"
 #include "suit/v4/handlers.h"
+#include "cbor.h"
 
 #define HELLO_HANDLER_MAX_STRLEN 32
 
@@ -27,13 +29,12 @@ static int _hello_handler(suit_v4_manifest_t *manifest, int key,
     (void)manifest;
     (void)key;
 
-    char strbuf[HELLO_HANDLER_MAX_STRLEN];
-    size_t strlen;
+    uint8_t buf[HELLO_HANDLER_MAX_STRLEN];
+    size_t len = HELLO_HANDLER_MAX_STRLEN;
 
-    if (cbor_calue_is_byte_string(it)) {
-        cbor_value_get_string_length(it, &strlen);
-        cbor_value_copy_byte_string(it, strbuf, strlen, NULL);
-        printf("HELLO: \"%.*s\"\n", strlen, bufbuf);
+    if (cbor_value_is_byte_string(it)) {
+        cbor_value_copy_byte_string(it, buf, &len, NULL);
+        printf("HELLO: \"%.*s\"\n", len, buf);
     }
     return SUIT_OK;
 }
@@ -46,7 +47,7 @@ static int _version_handler(suit_v4_manifest_t *manifest, int key,
     /* Validate manifest version */
     int version = -1;
     if (cbor_value_is_integer(it) &&
-        (cbor_value_get_int(it, version) == CborNoError)) {
+        (cbor_value_get_int(it, &version) == CborNoError)) {
         return version == SUIT_VERSION ? 0 : -1;
     }
     return 1;
@@ -93,7 +94,7 @@ static int _component_handler(suit_v4_manifest_t *manifest, int key,
 }
 
 /* begin{code-style-ignore} */
-static const suit_manifest_handler_t *global_handlers[] = {
+static suit_manifest_handler_t global_handlers[] = {
     [ 0] = _hello_handler,
     [ 1] = _version_handler,
     [ 2] = _seq_no_handler,
@@ -101,21 +102,22 @@ static const suit_manifest_handler_t *global_handlers[] = {
     [ 4] = _common_handler,
     [ 5] = _component_handler,
     [ 6] = NULL, /* dependency resolution */
+#if 0
     [ 7] = _payload_fetch,
     [ 8] = _install,
     [ 9] = _validate,
     [10] = _load,
     [11] = _run,
-}
+#endif
+};
 /* end{code-style-ignore} */
 
-static const global_handlers_len = sizeof(global_handlers) /
-                                   sizeof(global_handlers[0]);
+static const unsigned global_handlers_len = sizeof(global_handlers) / sizeof(global_handlers[0]);
 
 suit_manifest_handler_t _suit_manifest_get_handler(int key,
     const suit_manifest_handler_t *handlers, size_t len)
 {
-    if (key < 0 || key >= len) {
+    if (key < 0 || (size_t)key >= len) {
         return NULL;
     }
     return handlers[key];
