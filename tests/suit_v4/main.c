@@ -20,12 +20,12 @@
 
 #include "periph/pm.h"
 
-#include "suit/v4/cbor.h"
+#include "suit/v4/suit.h"
 #include "manifest.cbor.h"
 
 int main(void)
 {
-    suit_v4_cbor_manifest_t manifest;
+    suit_v4_manifest_t manifest;
     suit_v4_cbor_parse(&manifest, manifest_cbor, manifest_cbor_len);
 
     pm_off();
