@@ -36,8 +36,8 @@ extern "C" {
 #define SUIT_VALIDATED_VENDOR       0x8
 #define SUIT_VALIDATED_DEVICE_ID    0x10
 
-const uint32_t SUIT_DEFAULT_POLICY  = \
-          (SUIT_VALIDATED_VERSION | SUIT_VALIDATED_SEQ_NR);
+#define SUIT_DEFAULT_POLICY \
+          (SUIT_VALIDATED_VERSION)
 
 #ifdef __cplusplus
 }
