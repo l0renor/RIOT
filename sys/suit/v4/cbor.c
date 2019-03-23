@@ -25,6 +25,7 @@
 
 #include "suit/v4/handlers.h"
 #include "suit/v4/suit.h"
+#include "suit/v4/policy.h"
 #include "cbor.h"
 
 #define ENABLE_DEBUG (0)
@@ -89,6 +90,14 @@ int suit_v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
         cbor_value_advance(&map);
     }
 
-    cbor_value_enter_container(&map, &it);
+    cbor_value_leave_container(&map, &it);
+
+    if (SUIT_DEFAULT_POLICY & ~(manifest->validated)) {
+        puts("SUIT policy check failed!");
+    }
+    else {
+        puts("SUIT policy check OK.");
+    }
+
     return SUIT_OK;
 }

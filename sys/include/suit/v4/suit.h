@@ -115,6 +115,7 @@ typedef enum {
 typedef struct {
     const uint8_t *buf; /**< ptr to the buffer of the manifest */
     size_t len;         /**< length of the manifest */
+    uint32_t validated;
 } suit_v4_manifest_t;
 
 /**
