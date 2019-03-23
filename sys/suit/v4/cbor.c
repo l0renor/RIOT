@@ -75,12 +75,12 @@ int suit_v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
         suit_manifest_handler_t handler = suit_manifest_get_handler(integer_key);
 
         if (handler) {
-            int res = handler(&manifest, integer_key, &value);
+            int res = handler(manifest, integer_key, &value);
             if (res < 0) {
                 puts("handler returned <0");
                 return SUIT_ERR_INVALID_MANIFEST;
             }
-        (void)value;
+        }
 
         cbor_value_advance(&map);
     }
