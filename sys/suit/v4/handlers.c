@@ -17,9 +17,14 @@
  * @}
  */
 
+#include <inttypes.h>
+
 #include "suit/v4/suit.h"
 #include "suit/v4/handlers.h"
 #include "suit/v4/policy.h"
+#include "suit/v4/suit.h"
+#include "riotboot/hdr.h"
+#include "riotboot/slot.h"
 #include "cbor.h"
 
 #define HELLO_HANDLER_MAX_STRLEN 32
@@ -56,12 +61,13 @@ static int _version_handler(suit_v4_manifest_t *manifest, int key,
         if (version == SUIT_VERSION) {
             manifest->validated |= SUIT_VALIDATED_VERSION;
             return 0;
+            puts("suit: validated manifest version");
         }
         else {
             return -1;
         }
     }
-    return 1;
+    return -1;
 }
 
 static int _seq_no_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
@@ -69,9 +75,33 @@ static int _seq_no_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
     (void)manifest;
     (void)key;
     (void)it;
-    /* Validate that all sequence numbers on this device are lower than the
-     * supplied version number */
-    return 1;
+
+    uint32_t seq_nr;
+
+    if (cbor_value_is_unsigned_integer(it) &&
+        (cbor_value_get_int_checked(it, (int*)&seq_nr) == CborNoError)) {
+
+        const riotboot_hdr_t *hdr = riotboot_slot_get_hdr(riotboot_slot_current());
+        if (seq_nr <= hdr->version) {
+            printf("%"PRIu32" <= %"PRIu32"\n", seq_nr, hdr->version);
+            puts("seq_nr <= running image");
+            return -1;
+        }
+
+        hdr = riotboot_slot_get_hdr(riotboot_slot_other());
+        if (riotboot_hdr_validate(hdr) == 0) {
+            if (seq_nr <= hdr->version) {
+                printf("%"PRIu32" <= %"PRIu32"\n", seq_nr, hdr->version);
+                puts("seq_nr <= other image");
+                return -1;
+            }
+        }
+
+        puts("suit: validated sequence number");
+        manifest->validated |= SUIT_VALIDATED_SEQ_NR;
+        return 0;
+    }
+    return -1;
 }
 
 static int _dependencies_handler(suit_v4_manifest_t *manifest, int key,
