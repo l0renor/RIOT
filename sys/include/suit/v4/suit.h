@@ -24,7 +24,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "suit/v4/cbor.h"
 #include "uuid.h"
 
 #ifdef __cplusplus
@@ -69,6 +68,55 @@ typedef enum {
 } suit_v4_error_t;
 
 /**
+ * @brief TinyCBOR validation mode to use
+ */
+#define SUIT_TINYCBOR_VALIDATION_MODE       CborValidateStrictMode
+
+/**
+ * @brief SUIT conditionals
+ */
+enum {
+    SUIT_COND_VENDOR_ID     = 1,    /**< Vendor ID match conditional */
+    SUIT_COND_CLASS_ID      = 2,    /**< Class ID match conditional */
+    SUIT_COND_DEV_ID        = 3,    /**< Device ID match conditional */
+    SUIT_COND_BEST_BEFORE   = 4,    /**< Best before conditional */
+};
+
+/**
+ * @brief SUIT payload digest algorithms
+ *
+ * Unofficial list from
+ * [suit-manifest-generator](https://github.com/ARMmbed/suit-manifest-generator)
+ */
+typedef enum {
+    SUIT_DIGEST_NONE    = 0,    /**< No digest algo supplied */
+    SUIT_DIGEST_SHA256  = 1,    /**< SHA256 */
+    SUIT_DIGEST_SHA384  = 2,    /**< SHA384 */
+    SUIT_DIGEST_SHA512  = 3,    /**< SHA512 */
+} suit_v4_digest_t;
+
+/**
+ * @brief SUIT payload digest types
+ *
+ * Unofficial list from
+ * [suit-manifest-generator](https://github.com/ARMmbed/suit-manifest-generator)
+ */
+typedef enum {
+    SUIT_DIGEST_TYPE_RAW        = 1,    /**< Raw payload digest */
+    SUIT_DIGEST_TYPE_INSTALLED  = 2,    /**< Installed firmware digest */
+    SUIT_DIGEST_TYPE_CIPHERTEXT = 3,    /**< Ciphertext digest */
+    SUIT_DIGEST_TYPE_PREIMAGE   = 4     /**< Pre-image digest */
+} suit_v4_digest_type_t;
+
+/**
+ * @brief SUIT manifest struct
+ */
+typedef struct {
+    const uint8_t *buf; /**< ptr to the buffer of the manifest */
+    size_t len;         /**< length of the manifest */
+} suit_v4_manifest_t;
+
+/**
  * @brief Parse a manifest
  *
  * @note The buffer is still required after parsing, please don't reuse the
@@ -81,7 +129,7 @@ typedef enum {
  * @return              SUIT_OK on parseable manifest
  * @return              negative @ref suit_v4_error_t code on error
  */
-int suit_v4_parse(suit_v4_cbor_manifest_t *manifest, uint8_t *buf, size_t len);
+int suit_v4_parse(suit_v4_manifest_t *manifest, uint8_t *buf, size_t len);
 
 #ifdef __cplusplus
 }
