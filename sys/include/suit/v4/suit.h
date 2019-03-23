@@ -24,6 +24,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "cbor.h"
 #include "uuid.h"
 
 #ifdef __cplusplus
@@ -84,6 +85,15 @@ enum {
 };
 
 /**
+ * @brief SUIT condition parameters
+ */
+typedef struct {
+    uuid_t vendor;  /**< Vendor url as UUID                  */
+    uuid_t class;   /**< Device class UUID                   */
+    uuid_t device;  /**< Device specific information as UUID */
+} suit_v4_condition_params_t;
+
+/**
  * @brief SUIT payload digest algorithms
  *
  * Unofficial list from
@@ -115,8 +125,12 @@ typedef enum {
 typedef struct {
     const uint8_t *buf; /**< ptr to the buffer of the manifest */
     size_t len;         /**< length of the manifest */
-    uint32_t validated;
+    uint32_t validated; /**< bitfield of validated policies */
+    uint32_t state;     /**< bitfield holding state information */
+    CborValue components;
 } suit_v4_manifest_t;
+
+#define SIOT_MANIFEST_HAVE_COMPONENTS 0x1
 
 /**
  * @brief Parse a manifest
@@ -132,6 +146,11 @@ typedef struct {
  * @return              negative @ref suit_v4_error_t code on error
  */
 int suit_v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf, size_t len);
+
+void suit_v4_init_conditions(void);
+uuid_t *suit_v4_get_vendor_id(void);
+uuid_t *suit_v4_get_class_id(void);
+uuid_t *suit_v4_get_device_id(void);
 
 #ifdef __cplusplus
 }
