@@ -183,13 +183,16 @@ static int _component_handler(suit_v4_manifest_t *manifest, int key,
 
         while (cbor_map_iterate(&map, &key, &value)) {
             // handle key, value
-            (void)n;
+            printf("component %u (stub)\n", n);
         }
+
+        cbor_value_advance(&arr);
     }
 
     manifest->state |= SIOT_MANIFEST_HAVE_COMPONENTS;
     cbor_value_enter_container(&arr, it);
 
+    puts("storing components done");
     return 0;
 }
 
