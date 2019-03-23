@@ -26,7 +26,7 @@
 int main(void)
 {
     suit_v4_manifest_t manifest;
-    suit_v4_cbor_parse(&manifest, manifest_cbor, manifest_cbor_len);
+    suit_v4_parse(&manifest, manifest_cbor, manifest_cbor_len);
 
     pm_off();
 
