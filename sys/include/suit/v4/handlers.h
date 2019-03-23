@@ -38,7 +38,7 @@ extern "C" {
  * @return          1 on success
  * @return          negative on error
  */
-typedef int (*suit_manifest_handler)(suit_v4_manifest_t *manifest, int key, CborValue *it);
+typedef int (*suit_manifest_handler_t)(suit_v4_manifest_t *manifest, int key, CborValue *it);
 
 /**
  * @brief    Get suit manifest handler for given integer key
