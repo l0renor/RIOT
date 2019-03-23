@@ -23,14 +23,14 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "suit/v4/handlers.h"
 #include "suit/v4/suit.h"
-#include "suit/v4/cbor.h"
 #include "cbor.h"
 
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
-int suit_v4_cbor_parse(suit_v4_cbor_manifest_t *manifest, const uint8_t *buf,
+int suit_v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
                        size_t len)
 {
     manifest->buf = buf;
@@ -46,7 +46,7 @@ int suit_v4_cbor_parse(suit_v4_cbor_manifest_t *manifest, const uint8_t *buf,
     }
 
     if (!cbor_value_is_map(&it)) {
-        puts("suit_v4_cbor_parse(): manifest not an array");
+        puts("suit_v4_parse(): manifest not an array");
         return SUIT_ERR_INVALID_MANIFEST;
     }
 
@@ -72,7 +72,14 @@ int suit_v4_cbor_parse(suit_v4_cbor_manifest_t *manifest, const uint8_t *buf,
         }
 
         printf("got key val=%i\n", integer_key);
+        suit_manifest_handler_t handler = suit_manifest_get_handler(integer_key);
 
+        if (handler) {
+            int res = handler(&manifest, integer_key, &value);
+            if (res < 0) {
+                puts("handler returned <0");
+                return SUIT_ERR_INVALID_MANIFEST;
+            }
         (void)value;
 
         cbor_value_advance(&map);
