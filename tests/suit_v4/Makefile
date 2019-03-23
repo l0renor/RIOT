@@ -1,6 +1,7 @@
 DEVELHELP ?= 0
 include ../Makefile.tests_common
 
+USEMODULE += uuid
 USEMODULE += suit_v4_cbor
 USEPKG += tinycbor
 USEMODULE += riotboot_slot riotboot_hdr

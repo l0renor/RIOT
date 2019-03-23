@@ -29,6 +29,9 @@
 
 #define HELLO_HANDLER_MAX_STRLEN 32
 
+static int _handle_command_sequence(suit_v4_manifest_t *manifest, CborValue *it,
+        suit_manifest_handler_t handler);
+
 static int _hello_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
 {
     (void)manifest;
@@ -68,6 +71,30 @@ static int _version_handler(suit_v4_manifest_t *manifest, int key,
         }
     }
     return -1;
+}
+
+static int _common_sequence_handler(suit_v4_manifest_t *manifest, int key,
+                                    CborValue *it)
+{
+    (void)manifest;
+    printf("Received key %d\n", key);
+    switch(key) {
+        case SUIT_COND_VENDOR_ID:
+        case SUIT_COND_CLASS_ID:
+        case SUIT_COND_DEV_ID:
+            {
+                char uuid_str[UUID_STR_LEN + 1];
+                uuid_t uuid;
+                size_t len = sizeof(uuid);
+                cbor_value_copy_byte_string(it, (uint8_t*)&uuid, &len, NULL);
+                uuid_to_string(&uuid, uuid_str);
+                printf("Attempting to validate uuid: %s\n", uuid_str);
+            }
+            break;
+        default:
+            printf("Unknown section in common\n");
+    }
+    return 0;
 }
 
 static int _seq_no_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
@@ -116,11 +143,9 @@ static int _dependencies_handler(suit_v4_manifest_t *manifest, int key,
 
 static int _common_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
 {
-    (void)manifest;
+
     (void)key;
-    (void)it;
-    /* Check common section */
-    return 1;
+    return _handle_command_sequence(manifest, it, _common_sequence_handler);
 }
 
 static int _component_handler(suit_v4_manifest_t *manifest, int key,
@@ -138,9 +163,9 @@ static suit_manifest_handler_t global_handlers[] = {
     [ 1] = _version_handler,
     [ 2] = _seq_no_handler,
     [ 3] = _dependencies_handler,
-    [ 4] = _common_handler,
-    [ 5] = _component_handler,
-    [ 6] = NULL, /* dependency resolution */
+    [ 4] = _component_handler,
+    [ 5] = NULL,
+    [ 6] = _common_handler,
 #if 0
     [ 7] = _payload_fetch,
     [ 8] = _install,
@@ -168,4 +193,36 @@ suit_manifest_handler_t suit_manifest_get_handler(int key)
 {
     return _suit_manifest_get_handler(key, global_handlers,
                                       global_handlers_len);
+}
+
+int _handle_command_sequence(suit_v4_manifest_t *manifest, CborValue *it,
+        suit_manifest_handler_t handler)
+{
+
+    CborValue arr;
+    if (!cbor_value_is_array(it)) {
+        printf("Not an array\n");
+        return -1;
+    }
+    cbor_value_enter_container(it, &arr);
+
+    while (!cbor_value_at_end(&arr)) {
+        CborValue map;
+        if (!cbor_value_is_map(&arr)) {
+            return SUIT_ERR_INVALID_MANIFEST;
+        }
+        cbor_value_enter_container(&arr, &map);
+        int integer_key;
+        if (cbor_value_get_int_checked(&map, &integer_key) == CborErrorDataTooLarge) {
+            printf("integer key doesn't fit into int type\n");
+            return SUIT_ERR_INVALID_MANIFEST;
+        }
+        cbor_value_advance(&map);
+        int res = handler(manifest, integer_key, &map);
+        if (res < 0) {
+            return res;
+        }
+        cbor_value_leave_container(&arr, &map);
+    }
+    return 0;
 }
