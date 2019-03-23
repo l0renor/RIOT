@@ -53,6 +53,7 @@ extern "C" {
  * @brief Supported SUIT manifest version
  */
 #define SUIT_MANIFEST_VERSION        4
+#define SUIT_VERSION        4
 
 /**
  * @brief SUIT error codes
@@ -129,7 +130,7 @@ typedef struct {
  * @return              SUIT_OK on parseable manifest
  * @return              negative @ref suit_v4_error_t code on error
  */
-int suit_v4_parse(suit_v4_manifest_t *manifest, uint8_t *buf, size_t len);
+int suit_v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf, size_t len);
 
 #ifdef __cplusplus
 }
