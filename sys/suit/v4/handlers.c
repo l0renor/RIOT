@@ -295,13 +295,7 @@ static suit_manifest_handler_t global_handlers[] = {
     [ 4] = _component_handler,
     [ 5] = NULL,
     [ 6] = _common_handler,
-#if 0
-    [ 7] = _payload_fetch,
-    [ 8] = _install,
-    [ 9] = _validate,
-    [10] = _load,
-    [11] = _run,
-#endif
+    [ 9] = _common_handler,
 };
 /* end{code-style-ignore} */
 
