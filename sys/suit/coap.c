@@ -83,6 +83,7 @@ static void _suit_handle_url(const char *url)
             return;
         }
 
+        printf("suit_v4_parse() success\n");
         return;
 
 #endif
