@@ -28,6 +28,10 @@
 #include "suit/v1/cbor.h"
 #endif
 
+#ifdef MODULE_SUIT_V4
+#include "suit/v4/suit.h"
+#endif
+
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
@@ -58,6 +62,7 @@ static void _suit_handle_url(const char *url)
     if (size >= 0) {
         LOG_INFO("suit_coap: got manifest with size %u\n", (unsigned)size);
 
+#ifdef MODULE_SUIT_V1
         suit_v1_cbor_manifest_t manifest_v1;
         ssize_t res;
 
@@ -70,6 +75,17 @@ static void _suit_handle_url(const char *url)
             printf("suit_v1_cbor_get_url() failed res=%i\n", res);
             return;
         }
+#else
+        suit_v4_manifest_t manifest;
+        ssize_t res;
+        if ((res = suit_v4_parse(&manifest, _manifest_buf, size)) != SUIT_OK) {
+            printf("suit_v4_parse() failed. res=%i\n", res);
+            return;
+        }
+
+        return;
+
+#endif
         assert (res < SUIT_URL_MAX);
         _url[res] = '\0';
 
