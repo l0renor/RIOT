@@ -61,7 +61,7 @@ static int _validate_uuid(suit_v4_manifest_t *manifest, CborValue *it, uuid_t *u
     char uuid_str[UUID_STR_LEN + 1];
     size_t len = sizeof(uuid_t);
     cbor_value_copy_byte_string(it, (uint8_t*)&uuid_manifest, &len, NULL);
-    uuid_to_string(uuid, uuid_str);
+    uuid_to_string(&uuid_manifest, uuid_str);
     printf("Comparing to %s from manifest\n", uuid_str);
     return uuid_equal(uuid, &uuid_manifest) ? 0 : -1;
 }
