@@ -16,7 +16,7 @@ SUIT_KEY ?= secret.key
 $(SUIT_MANIFEST): $(SLOT0_RIOT_BIN) $(SLOT1_RIOT_BIN)
 	$(RIOTBASE)/dist/tools/suit_v4/gen_manifest.py \
 	  --template $(RIOTBASE)/dist/tools/suit_v4/test-2img.json \
-	  --urlroot $(SUIT_COAP_ROOT)/$(notdir $<) \
+	  --urlroot $(SUIT_COAP_ROOT) \
 	  --seqnr $(SUIT_SEQNR) \
 	  --uuid-vendor $(SUIT_VENDOR) \
 	  --uuid-class $(SUIT_DEVICE_ID) \
