@@ -26,7 +26,17 @@
 
 int main(void)
 {
+    char uuid_str[UUID_STR_LEN + 1];
+    suit_v4_init_conditions();
+
     printf("running from slot %i\n", riotboot_slot_current());
+
+    uuid_to_string(suit_v4_get_vendor_id(), uuid_str);
+    printf("SUIT vendor code: %s\n", uuid_str);
+    uuid_to_string(suit_v4_get_class_id(), uuid_str);
+    printf("SUIT device code: %s\n", uuid_str);
+    uuid_to_string(suit_v4_get_device_id(), uuid_str);
+    printf("SUIT device code: %s\n", uuid_str);
     suit_v4_manifest_t manifest;
     suit_v4_parse(&manifest, manifest_cbor, manifest_cbor_len);
 
