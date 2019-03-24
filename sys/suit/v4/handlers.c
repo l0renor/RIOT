@@ -31,6 +31,7 @@
 
 static int _handle_command_sequence(suit_v4_manifest_t *manifest, CborValue *it,
         suit_manifest_handler_t handler);
+static int _common_handler(suit_v4_manifest_t *manifest, int key, CborValue *it);
 
 static int _hello_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
 {
@@ -51,6 +52,37 @@ static int _hello_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
         return -1;
     }
 }
+
+static int _validate_uuid(suit_v4_manifest_t *manifest, CborValue *it, uuid_t *uuid)
+{
+    (void)manifest;
+    uuid_t uuid_manifest;
+    size_t len = sizeof(uuid_t);
+    cbor_value_copy_byte_string(it, (uint8_t*)&uuid_manifest, &len, NULL);
+    return uuid_equal(uuid, &uuid_manifest) ? 0 : -1;
+}
+
+static int _cond_vendor_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
+{
+    (void)key;
+    printf("validating vendor ID\n");
+    return _validate_uuid(manifest, it, suit_v4_get_vendor_id());
+}
+
+static int _cond_device_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
+{
+    (void)key;
+    printf("validating device ID\n");
+    return _validate_uuid(manifest, it, suit_v4_get_device_id());
+}
+
+static int _cond_class_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
+{
+    (void)key;
+    printf("validating class ID\n");
+    return _validate_uuid(manifest, it, suit_v4_get_class_id());
+}
+
 
 static int _version_handler(suit_v4_manifest_t *manifest, int key,
                             CborValue *it)
@@ -73,52 +105,27 @@ static int _version_handler(suit_v4_manifest_t *manifest, int key,
     return -1;
 }
 
-static int _common_sequence_handler(suit_v4_manifest_t *manifest, int key,
-                                    CborValue *it)
-{
-    (void)manifest;
-    printf("Received key %d\n", key);
-    switch(key) {
-        case SUIT_COND_VENDOR_ID:
-        case SUIT_COND_CLASS_ID:
-        case SUIT_COND_DEV_ID:
-            {
-                char uuid_str[UUID_STR_LEN + 1];
-                uuid_t uuid;
-                size_t len = sizeof(uuid);
-                cbor_value_copy_byte_string(it, (uint8_t*)&uuid, &len, NULL);
-                uuid_to_string(&uuid, uuid_str);
-                printf("Attempting to validate uuid: %s\n", uuid_str);
-            }
-            break;
-        default:
-            printf("Unknown section in common\n");
-    }
-    return 0;
-}
-
 static int _seq_no_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
 {
     (void)manifest;
     (void)key;
     (void)it;
 
-    uint32_t seq_nr;
-
+    int64_t seq_nr;
     if (cbor_value_is_unsigned_integer(it) &&
-        (cbor_value_get_int_checked(it, (int*)&seq_nr) == CborNoError)) {
+        (cbor_value_get_int64_checked(it, &seq_nr) == CborNoError)) {
 
         const riotboot_hdr_t *hdr = riotboot_slot_get_hdr(riotboot_slot_current());
-        if (seq_nr <= hdr->version) {
-            printf("%"PRIu32" <= %"PRIu32"\n", seq_nr, hdr->version);
+        if (seq_nr <= (int64_t)hdr->version) {
+            printf("%"PRIu64" <= %"PRIu32"\n", seq_nr, hdr->version);
             puts("seq_nr <= running image");
             return -1;
         }
 
         hdr = riotboot_slot_get_hdr(riotboot_slot_other());
         if (riotboot_hdr_validate(hdr) == 0) {
-            if (seq_nr <= hdr->version) {
-                printf("%"PRIu32" <= %"PRIu32"\n", seq_nr, hdr->version);
+            if (seq_nr <= (int64_t)hdr->version) {
+                printf("%"PRIu64" <= %"PRIu32"\n", seq_nr, hdr->version);
                 puts("seq_nr <= other image");
                 return -1;
             }
@@ -128,6 +135,7 @@ static int _seq_no_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
         manifest->validated |= SUIT_VALIDATED_SEQ_NR;
         return 0;
     }
+    printf("Unable to get sequence number\n");
     return -1;
 }
 
@@ -139,13 +147,6 @@ static int _dependencies_handler(suit_v4_manifest_t *manifest, int key,
     (void)it;
     /* No dependency support */
     return 0;
-}
-
-static int _common_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
-{
-
-    (void)key;
-    return _handle_command_sequence(manifest, it, _common_sequence_handler);
 }
 
 static int _component_handler(suit_v4_manifest_t *manifest, int key,
@@ -233,6 +234,18 @@ static suit_manifest_handler_t global_handlers[] = {
 static const unsigned global_handlers_len = sizeof(global_handlers) /
                                             sizeof(global_handlers[0]);
 
+/* begin{code-style-ignore} */
+static suit_manifest_handler_t _sequence_handlers[] = {
+    [ 0] = NULL,
+    [ 1] = _cond_vendor_handler,
+    [ 2] = _cond_class_handler,
+    [ 3] = _cond_device_handler,
+};
+/* end{code-style-ignore} */
+
+static const unsigned _sequence_handlers_len = sizeof(_sequence_handlers) /
+                                            sizeof(_sequence_handlers[0]);
+
 static suit_manifest_handler_t _suit_manifest_get_handler(int key,
                                                    const suit_manifest_handler_t *handlers,
                                                    size_t len)
@@ -249,10 +262,31 @@ suit_manifest_handler_t suit_manifest_get_manifest_handler(int key)
                                       global_handlers_len);
 }
 
+static int _common_sequence_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
+{
+
+    suit_manifest_handler_t handler = _suit_manifest_get_handler(key, _sequence_handlers, _sequence_handlers_len);
+    printf("Handling handler with key %d at %p\n", key, handler);
+    if (handler) {
+        return handler(manifest, key, it);
+    }
+    else {
+        printf("Sequence handler not implemented\n");
+        return -1;
+    }
+}
+
+static int _common_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
+{
+    (void)key;
+    return _handle_command_sequence(manifest, it, _common_sequence_handler);
+}
+
 int _handle_command_sequence(suit_v4_manifest_t *manifest, CborValue *bseq,
         suit_manifest_handler_t handler)
 {
 
+    printf("Handling command sequence\n");
     if (!cbor_value_is_byte_string(bseq)) {
         printf("Not an byte array\n");
         return -1;
@@ -293,8 +327,10 @@ int _handle_command_sequence(suit_v4_manifest_t *manifest, CborValue *bseq,
         cbor_value_advance(&map);
         int res = handler(manifest, integer_key, &map);
         if (res < 0) {
+            printf("Sequence handler error\n");
             return res;
         }
+        cbor_value_advance(&map);
         cbor_value_leave_container(&arr, &map);
     }
     return 0;
