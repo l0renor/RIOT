@@ -106,10 +106,11 @@ static int _cond_comp_offset(suit_v4_manifest_t *manifest, int key, CborValue *i
 {
     (void)manifest;
     (void)key;
-    int offset;
-    suit_cbor_get_int(it, &offset);
-    int other_offset = riotboot_slot_get_image_startaddr(riotboot_slot_other());
-    printf("Comparing manifest offset %u with other slot offset %u\n", offset, other_offset);
+    uint32_t offset;
+    suit_cbor_get_uint32(it, &offset);
+    uint32_t other_offset = (uint32_t)riotboot_slot_get_hdr(riotboot_slot_other());
+    printf("Comparing manifest offset %u with other slot offset %u\n",
+           (unsigned)offset, (unsigned)other_offset);
     return other_offset == offset ? 0 : -1;
 }
 
