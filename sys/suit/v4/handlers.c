@@ -92,21 +92,12 @@ static int _cond_comp_offset(suit_v4_manifest_t *manifest, int key, CborValue *i
     (void)manifest;
     (void)key;
     int offset;
-    int res = suit_cbor_get_int(it, &offset);
-    (void)res;
-    (void)offset;
-    return 0;
+    suit_cbor_get_int(it, &offset);
+    int other_offset = riotboot_slot_get_image_startaddr(riotboot_slot_other());
+    return other_offset == offset ? 0 : -1;
 }
 
 static int _dtv_set_comp_idx(suit_v4_manifest_t *manifest, int key, CborValue *it)
-{
-    (void)key;
-    int res = suit_cbor_get_int(it, &manifest->component_current);
-    printf("Setting component index to %d\n", manifest->component_current);
-    return res;
-}
-
-static int _dtv_set_param(suit_v4_manifest_t *manifest, int key, CborValue *it)
 {
     (void)key;
     int res = suit_cbor_get_int(it, &manifest->component_current);
@@ -120,6 +111,32 @@ static int _dtv_run_seq_cond(suit_v4_manifest_t *manifest, int key, CborValue *i
     printf("Starting conditional sequence handler\n");
     _handle_command_sequence(manifest, it, _common_sequence_handler);
     return 0;
+}
+
+static int _param_get_uri_list(suit_v4_manifest_t *manifest, CborValue *it)
+{
+    manifest->components[manifest->component_current].url = *it;
+    return 0;
+}
+
+static int _dtv_set_param(suit_v4_manifest_t *manifest, int key, CborValue *it)
+{
+    (void)key;
+    /* `it` points to the entry of the map containing the type and value */
+    CborValue map;
+
+    cbor_value_enter_container(it, &map);
+    /* map points to the key of the param */
+    int param_key;
+    suit_cbor_get_int(&map, &param_key);
+    cbor_value_advance(&map);
+    printf("Setting component index to %d\n", manifest->component_current);
+    switch (param_key) {
+        case 6: /* SUIT URI LIST */
+            return _param_get_uri_list(manifest, &map);
+        default:
+            return -1;
+    }
 }
 
 static int _version_handler(suit_v4_manifest_t *manifest, int key,
