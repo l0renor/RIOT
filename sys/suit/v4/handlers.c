@@ -135,6 +135,11 @@ static int _param_get_uri_list(suit_v4_manifest_t *manifest, CborValue *it)
     manifest->components[manifest->component_current].url = *it;
     return 0;
 }
+static int _param_get_digest(suit_v4_manifest_t *manifest, CborValue *it)
+{
+    manifest->components[manifest->component_current].digest = *it;
+    return 0;
+}
 
 static int _dtv_set_param(suit_v4_manifest_t *manifest, int key, CborValue *it)
 {
@@ -148,9 +153,12 @@ static int _dtv_set_param(suit_v4_manifest_t *manifest, int key, CborValue *it)
     suit_cbor_get_int(&map, &param_key);
     cbor_value_advance(&map);
     printf("Setting component index to %d\n", manifest->component_current);
+    printf("param_key=%i\n", param_key);
     switch (param_key) {
         case 6: /* SUIT URI LIST */
             return _param_get_uri_list(manifest, &map);
+        case 11: /* SUIT DIGEST */
+            return _param_get_digest(manifest, &map);
         default:
             return -1;
     }
