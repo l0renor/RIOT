@@ -49,7 +49,7 @@ extern "C" {
  * By default the RIOT_VERSION define is used for this
  */
 #ifndef SUIT_CLASS_ID
-#define SUIT_CLASS_ID  RIOT_VERSION
+#define SUIT_CLASS_ID  RIOT_BOARD
 #endif
 
 /**
