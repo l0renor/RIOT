@@ -70,21 +70,36 @@ static int _cond_vendor_handler(suit_v4_manifest_t *manifest, int key, CborValue
 {
     (void)key;
     printf("validating vendor ID\n");
-    return _validate_uuid(manifest, it, suit_v4_get_vendor_id());
+    int rc = _validate_uuid(manifest, it, suit_v4_get_vendor_id());
+    if (rc == SUIT_OK) {
+        printf("validating vendor ID: OK\n");
+        manifest->validated |= SUIT_VALIDATED_VENDOR;
+    }
+    return rc;
 }
 
 static int _cond_device_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
 {
     (void)key;
     printf("validating device ID\n");
-    return _validate_uuid(manifest, it, suit_v4_get_device_id());
+    int rc = _validate_uuid(manifest, it, suit_v4_get_device_id());
+    if (rc == SUIT_OK) {
+        printf("validating device ID: OK\n");
+        manifest->validated |= SUIT_VALIDATED_DEVICE;
+    }
+    return rc;
 }
 
 static int _cond_class_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
 {
     (void)key;
-    printf("validating class ID\n");
-    return _validate_uuid(manifest, it, suit_v4_get_class_id());
+    printf("validating class id\n");
+    int rc = _validate_uuid(manifest, it, suit_v4_get_class_id());
+    if (rc == SUIT_OK) {
+        printf("validating class id: OK\n");
+        manifest->validated |= SUIT_VALIDATED_CLASS;
+    }
+    return rc;
 }
 
 static int _cond_comp_offset(suit_v4_manifest_t *manifest, int key, CborValue *it)
@@ -251,6 +266,8 @@ static int _component_handler(suit_v4_manifest_t *manifest, int key,
                 case SUIT_COMPONENT_DIGEST:
                     current->digest = value;
                     break;
+                default:
+                    printf("ignoring unexpected component data (nr. %i)\n", integer_key);
             }
 
             printf("component %u parsed\n", n);
