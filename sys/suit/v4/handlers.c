@@ -87,6 +87,33 @@ static int _cond_class_handler(suit_v4_manifest_t *manifest, int key, CborValue 
     return _validate_uuid(manifest, it, suit_v4_get_class_id());
 }
 
+static int _cond_comp_offset(suit_v4_manifest_t *manifest, int key, CborValue *it)
+{
+    (void)manifest;
+    (void)key;
+    int offset;
+    int res = suit_cbor_get_int(it, &offset);
+    (void)res;
+    (void)offset;
+    return 0;
+}
+
+static int _dtv_set_comp_idx(suit_v4_manifest_t *manifest, int key, CborValue *it)
+{
+    (void)key;
+    int res = suit_cbor_get_int(it, &manifest->component_current);
+    printf("Setting component index to %d\n", manifest->component_current);
+    return res;
+}
+
+static int _dtv_set_param(suit_v4_manifest_t *manifest, int key, CborValue *it)
+{
+    (void)key;
+    int res = suit_cbor_get_int(it, &manifest->component_current);
+    printf("Setting component index to %d\n", manifest->component_current);
+    return res;
+}
+
 static int _dtv_run_seq_cond(suit_v4_manifest_t *manifest, int key, CborValue *it)
 {
     (void)key;
@@ -251,8 +278,15 @@ static suit_manifest_handler_t _sequence_handlers[] = {
     [ 1] = _cond_vendor_handler,
     [ 2] = _cond_class_handler,
     [ 3] = _cond_device_handler,
+    [10] = _cond_comp_offset,
     /* Directives */
+    [11] = _dtv_set_comp_idx,
+//    [12] = _dtv_set_man_idx,
+//    [13] = _dtv_run_seq,
     [14] = _dtv_run_seq_cond,
+    [16] = _dtv_set_param,
+//    [20] = _dtv_fetch,
+//    [22] = _dtv_run,
 };
 /* end{code-style-ignore} */
 
