@@ -32,6 +32,7 @@
 static int _handle_command_sequence(suit_v4_manifest_t *manifest, CborValue *it,
         suit_manifest_handler_t handler);
 static int _common_handler(suit_v4_manifest_t *manifest, int key, CborValue *it);
+static int _common_sequence_handler(suit_v4_manifest_t *manifest, int key, CborValue *it);
 
 static int _hello_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
 {
@@ -86,6 +87,13 @@ static int _cond_class_handler(suit_v4_manifest_t *manifest, int key, CborValue 
     return _validate_uuid(manifest, it, suit_v4_get_class_id());
 }
 
+static int _dtv_run_seq_cond(suit_v4_manifest_t *manifest, int key, CborValue *it)
+{
+    (void)key;
+    printf("Starting conditional sequence handler\n");
+    _handle_command_sequence(manifest, it, _common_sequence_handler);
+    return 0;
+}
 
 static int _version_handler(suit_v4_manifest_t *manifest, int key,
                             CborValue *it)
@@ -243,6 +251,8 @@ static suit_manifest_handler_t _sequence_handlers[] = {
     [ 1] = _cond_vendor_handler,
     [ 2] = _cond_class_handler,
     [ 3] = _cond_device_handler,
+    /* Directives */
+    [14] = _dtv_run_seq_cond,
 };
 /* end{code-style-ignore} */
 
@@ -274,7 +284,7 @@ static int _common_sequence_handler(suit_v4_manifest_t *manifest, int key, CborV
         return handler(manifest, key, it);
     }
     else {
-        printf("Sequence handler not implemented\n");
+        printf("Sequence handler not implemented, ID: %d\n", key);
         return -1;
     }
 }
