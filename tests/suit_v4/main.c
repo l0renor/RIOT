@@ -22,9 +22,11 @@
 
 #include "suit/v4/suit.h"
 #include "manifest.cbor.h"
+#include "riotboot/slot.h"
 
 int main(void)
 {
+    printf("running from slot %i\n", riotboot_slot_current());
     suit_v4_manifest_t manifest;
     suit_v4_parse(&manifest, manifest_cbor, manifest_cbor_len);
 
