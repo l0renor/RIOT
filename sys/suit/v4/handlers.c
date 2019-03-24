@@ -32,18 +32,6 @@
 static int _handle_command_sequence(suit_v4_manifest_t *manifest, CborValue *it,
         suit_manifest_handler_t handler);
 
-int suit_cbor_get_string(const CborValue *it, const uint8_t **buf, size_t *len)
-{
-    if (!(cbor_value_is_text_string(it) || cbor_value_is_byte_string(it) || cbor_value_is_length_known(it))) {
-        return -1;
-    }
-    CborValue next = *it;
-    cbor_value_get_string_length(it, len);
-    cbor_value_advance(&next);
-    *buf = next.ptr - *len;
-    return 0;
-}
-
 static int _hello_handler(suit_v4_manifest_t *manifest, int key, CborValue *it)
 {
     (void)manifest;
@@ -178,15 +166,42 @@ static int _component_handler(suit_v4_manifest_t *manifest, int key,
     unsigned n = 0;
     while (!cbor_value_at_end(&arr)) {
         CborValue map, key, value;
+        if (n < SUIT_V4_COMPONENT_MAX) {
+            manifest->components_len += 1;
+        }
+        else {
+            puts("too many components");
+            return SUIT_ERR_INVALID_MANIFEST;
+        }
 
         cbor_map_iterate_init(&map, &arr);
 
+        suit_v4_component_t *current = &manifest->components[n];
+
         while (cbor_map_iterate(&map, &key, &value)) {
             // handle key, value
-            printf("component %u (stub)\n", n);
+            int integer_key;
+            if (suit_cbor_get_int(&key, &integer_key)) {
+                return SUIT_ERR_INVALID_MANIFEST;
+            }
+
+            switch (integer_key) {
+                case SUIT_COMPONENT_IDENTIFIER:
+                    current->identifier = value;
+                    break;
+                case SUIT_COMPONENT_SIZE:
+                    current->size = value;
+                    break;
+                case SUIT_COMPONENT_DIGEST:
+                    current->digest = value;
+                    break;
+            }
+
+            printf("component %u parsed\n", n);
         }
 
         cbor_value_advance(&arr);
+        n++;
     }
 
     manifest->state |= SIOT_MANIFEST_HAVE_COMPONENTS;
@@ -271,10 +286,10 @@ int _handle_command_sequence(suit_v4_manifest_t *manifest, CborValue *bseq,
         }
         cbor_value_enter_container(&arr, &map);
         int integer_key;
-        if (cbor_value_get_int_checked(&map, &integer_key) == CborErrorDataTooLarge) {
-            printf("integer key doesn't fit into int type\n");
+        if (suit_cbor_get_int(&map, &integer_key)) {
             return SUIT_ERR_INVALID_MANIFEST;
         }
+
         cbor_value_advance(&map);
         int res = handler(manifest, integer_key, &map);
         if (res < 0) {

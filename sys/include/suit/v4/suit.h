@@ -121,13 +121,20 @@ typedef enum {
     SUIT_DIGEST_TYPE_PREIMAGE   = 4     /**< Pre-image digest */
 } suit_v4_digest_type_t;
 
+enum {
+    SUIT_COMPONENT_IDENTIFIER   = 1,
+    SUIT_COMPONENT_SIZE         = 2,
+    SUIT_COMPONENT_DIGEST       = 3,
+};
+
 /**
  * @brief SUIT v4 component struct
  */
 typedef struct {
-    size_t size;
-    char *url;
-    char *digest;
+    CborValue size;
+    CborValue identifier;
+    CborValue url;
+    CborValue digest;
 } suit_v4_component_t;
 
 /**
@@ -140,6 +147,7 @@ typedef struct {
     uint32_t state;     /**< bitfield holding state information */
 
     suit_v4_component_t components[SUIT_V4_COMPONENT_MAX];
+    //CborValue components[SUIT_V4_COMPONENT_MAX];
     unsigned components_len;
     int component_current;
 
@@ -169,6 +177,11 @@ uuid_t *suit_v4_get_device_id(void);
 
 int cbor_map_iterate_init(CborValue *map, CborValue *it);
 int cbor_map_iterate(CborValue *map, CborValue *key, CborValue *value);
+
+int suit_cbor_get_int(const CborValue *key, int *out);
+int suit_cbor_get_uint(const CborValue *key, unsigned *out);
+int suit_cbor_get_uint32(const CborValue *it, uint32_t *out);
+int suit_cbor_get_string(const CborValue *it, const uint8_t **buf, size_t *len);
 
 #ifdef __cplusplus
 }

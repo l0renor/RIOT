@@ -61,22 +61,61 @@ int cbor_map_iterate(CborValue *it, CborValue *key, CborValue *value)
     return 1;
 }
 
-int cbor_get_int_key(CborValue *key, int *integer_key)
+int suit_cbor_get_int(const CborValue *it, int *out)
 {
-    if (!cbor_value_is_integer(key)) {
-        printf("expected integer key type, got %u\n", cbor_value_get_type(key));
+    if (!cbor_value_is_integer(it)) {
+        printf("expected integer type, got %u\n", cbor_value_get_type(it));
         return SUIT_ERR_INVALID_MANIFEST;
     }
 
     /* This check tests whether the integer fits into "int", thus the check
      * is platform dependent. This is for lack of specification of actually
      * allowed values, to be made explicit at some point. */
-    if (cbor_value_get_int_checked(key, integer_key) == CborErrorDataTooLarge) {
-        printf("integer key doesn't fit into int type\n");
+    if (cbor_value_get_int_checked(it, out) == CborErrorDataTooLarge) {
+        printf("integer doesn't fit into int type\n");
         return SUIT_ERR_INVALID_MANIFEST;
     }
 
     return SUIT_OK;
+}
+
+int suit_cbor_get_string(const CborValue *it, const uint8_t **buf, size_t *len)
+{
+    if (!(cbor_value_is_text_string(it) || cbor_value_is_byte_string(it) || cbor_value_is_length_known(it))) {
+        return -1;
+    }
+    CborValue next = *it;
+    cbor_value_get_string_length(it, len);
+    cbor_value_advance(&next);
+    *buf = next.ptr - *len;
+    return 0;
+}
+
+int suit_cbor_get_uint32(const CborValue *it, uint32_t *out)
+{
+    int res;
+    int64_t val;
+    if (!cbor_value_is_unsigned_integer(it)) {
+        return CborErrorIllegalType;
+    }
+    if ((res = cbor_value_get_int64_checked(it, &val))) {
+        return res;
+    }
+    if (val > 0xFFFFFFFF) {
+        return CborErrorDataTooLarge;
+    }
+    *out = (val & 0xFFFFFFFF);
+
+    return CborNoError;
+}
+
+int suit_cbor_get_uint(const CborValue *it, unsigned *out)
+{
+#if 1
+    return suit_cbor_get_uint32(it, (uint32_t *)out);
+#else
+#error suit_cbor_get_uint only implemented for sizeof(unsigned) == 4
+#endif
 }
 
 static int _v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
@@ -103,7 +142,7 @@ static int _v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
 
     while (cbor_map_iterate(&map, &key, &value)) {
         int integer_key;
-        if (cbor_get_int_key(&key, &integer_key) != SUIT_OK){
+        if (suit_cbor_get_int(&key, &integer_key) != SUIT_OK){
             return SUIT_ERR_INVALID_MANIFEST;
         }
         printf("got key val=%i\n", integer_key);
