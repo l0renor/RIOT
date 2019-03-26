@@ -118,6 +118,22 @@ int suit_cbor_get_uint(const CborValue *it, unsigned *out)
 #endif
 }
 
+int suit_cbor_subparse(CborParser *parser, CborValue *bseq, CborValue *it)
+{
+    const uint8_t *bytes;
+    size_t bytes_len = 0;
+
+    if (!cbor_value_is_byte_string(bseq)) {
+        printf("suit_cbor_subparse(): bseq not a byte string\n");
+        return -1;
+    }
+
+    suit_cbor_get_string(bseq, &bytes, &bytes_len);
+
+    return cbor_parser_init(bytes, bytes_len, SUIT_TINYCBOR_VALIDATION_MODE, parser,
+                            it);
+}
+
 static int _v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
                        size_t len, suit_manifest_handler_getter_t getter)
 {
@@ -162,13 +178,6 @@ static int _v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf,
     }
 
     cbor_value_leave_container(&map, &it);
-
-    if (SUIT_DEFAULT_POLICY & ~(manifest->validated)) {
-        puts("SUIT policy check failed!");
-    }
-    else {
-        puts("SUIT policy check OK.");
-    }
 
     return SUIT_OK;
 }

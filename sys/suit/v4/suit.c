@@ -1,6 +1,7 @@
 #include "uuid.h"
 #include "luid.h"
 #include "suit/v4/suit.h"
+#include "suit/v4/policy.h"
 
 #define SUIT_DEVID_BYTES 32
 
@@ -37,4 +38,16 @@ uuid_t *suit_v4_get_class_id(void)
 uuid_t *suit_v4_get_device_id(void)
 {
     return &_conditions.device;
+}
+
+int suit_v4_policy_check(suit_v4_manifest_t *manifest)
+{
+    if (SUIT_DEFAULT_POLICY & ~(manifest->validated)) {
+        puts("SUIT policy check failed!");
+        return -1;
+    }
+    else {
+        puts("SUIT policy check OK.");
+        return 0;
+    }
 }

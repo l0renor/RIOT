@@ -19,6 +19,7 @@
 
 #include <inttypes.h>
 
+#include "net/nanocoap_sock.h"
 #include "suit/v4/suit.h"
 #include "suit/v4/handlers.h"
 #include "suit/v4/policy.h"
@@ -117,8 +118,14 @@ static int _cond_comp_offset(suit_v4_manifest_t *manifest, int key, CborValue *i
 static int _dtv_set_comp_idx(suit_v4_manifest_t *manifest, int key, CborValue *it)
 {
     (void)key;
+    if (cbor_value_is_boolean(it)) {
+        puts("_dtv_set_comp_idx() ignoring boolean");
+        return 0;
+    }
     int res = suit_cbor_get_int(it, &manifest->component_current);
-    printf("Setting component index to %d\n", manifest->component_current);
+    if (!res) {
+        printf("Setting component index to %d\n", manifest->component_current);
+    }
     return res;
 }
 
@@ -154,14 +161,96 @@ static int _dtv_set_param(suit_v4_manifest_t *manifest, int key, CborValue *it)
     cbor_value_advance(&map);
     printf("Setting component index to %d\n", manifest->component_current);
     printf("param_key=%i\n", param_key);
+    int res;
     switch (param_key) {
         case 6: /* SUIT URI LIST */
-            return _param_get_uri_list(manifest, &map);
+            res = _param_get_uri_list(manifest, &map);
+            break;
         case 11: /* SUIT DIGEST */
-            return _param_get_digest(manifest, &map);
+            res = _param_get_digest(manifest, &map);
+            break;
         default:
-            return -1;
+            res = -1;
     }
+
+    cbor_value_advance(&map);
+    return res;
+}
+
+static int _dtv_fetch(suit_v4_manifest_t *manifest, int key, CborValue *_it)
+{
+    (void)key; (void)_it; (void)manifest;
+    printf("_dtv_fetch() key=%i\n", key);
+
+    const uint8_t *url;
+    size_t url_len;
+
+    /* TODO: there must be a simpler way */
+    {
+        /* the url list is a binary sequence containing a cbor array of
+         * (priority, url) tuples (represented as array with length two)
+         * */
+
+        CborParser parser;
+        CborValue it;
+
+        /* open sequence qith cbor parser */
+        int err = suit_cbor_subparse(&parser, &manifest->components[0].url, &it);
+        if (err < 0) {
+            puts("subparse failed");
+            return err;
+        }
+
+        /* confirm the document contains an array */
+        if (!cbor_value_is_array(&it)) {
+            puts("url list no array");
+            printf("type: %u\n", cbor_value_get_type(&it));
+        }
+
+        /* enter container, confirm it is an array, too */
+        CborValue url_it;
+        cbor_value_enter_container(&it, &url_it);
+        if (!cbor_value_is_array(&url_it)) {
+            puts("url entry no array");
+        }
+
+        /* expect two entries: priority as int, url as byte string. bail out if not. */
+        CborValue url_value_it;
+        cbor_value_enter_container(&url_it, &url_value_it);
+
+        /* check that first array entry is an int (the priotity of the url) */
+        if (cbor_value_get_type(&url_value_it) != CborIntegerType) {
+            return -1;
+        }
+
+        cbor_value_advance(&url_value_it);
+
+        int res = suit_cbor_get_string(&url_value_it, &url, &url_len);
+        if (res) {
+            puts("error parsing URL");
+            return -1;
+        }
+        if (url_len >= manifest->urlbuf_len) {
+            puts("url too large");
+            return -1;
+        }
+        memcpy(manifest->urlbuf, url, url_len);
+        manifest->urlbuf[url_len] = '\0';
+    }
+
+    printf("_dtv_fetch() fetching \"%s\" (url_len=%u)\n", manifest->urlbuf, (unsigned)url_len);
+
+    riotboot_flashwrite_init(manifest->writer, riotboot_slot_other());
+    int res = nanocoap_get_blockwise_url(manifest->urlbuf, COAP_BLOCKSIZE_64, suit_flashwrite_helper,
+            manifest->writer);
+
+    if (res == 0) {
+        puts("image download successful");
+        manifest->state |= SUIT_MANIFEST_HAVE_IMAGE;
+        return res;
+    }
+
+    return -1;
 }
 
 static int _version_handler(suit_v4_manifest_t *manifest, int key,
@@ -287,7 +376,7 @@ static int _component_handler(suit_v4_manifest_t *manifest, int key,
         n++;
     }
 
-    manifest->state |= SIOT_MANIFEST_HAVE_COMPONENTS;
+    manifest->state |= SUIT_MANIFEST_HAVE_COMPONENTS;
     cbor_value_enter_container(&arr, it);
 
     puts("storing components done");
@@ -323,7 +412,7 @@ static suit_manifest_handler_t _sequence_handlers[] = {
 //    [13] = _dtv_run_seq,
     [14] = _dtv_run_seq_cond,
     [16] = _dtv_set_param,
-//    [20] = _dtv_fetch,
+    [20] = _dtv_fetch,
 //    [22] = _dtv_run,
 };
 /* end{code-style-ignore} */
@@ -372,26 +461,14 @@ int _handle_command_sequence(suit_v4_manifest_t *manifest, CborValue *bseq,
 {
 
     printf("Handling command sequence\n");
-    if (!cbor_value_is_byte_string(bseq)) {
-        printf("Not an byte array\n");
-        return -1;
-    }
-
-    const uint8_t *sequence;
-    size_t seq_len = 0;
     CborParser parser;
     CborValue it, arr;
 
-    if (!cbor_value_is_byte_string(bseq)) {
-        printf("Not an byte array\n");
-        return -1;
-    }
-    suit_cbor_get_string(bseq, &sequence, &seq_len);
-    CborError err = cbor_parser_init(sequence, seq_len, SUIT_TINYCBOR_VALIDATION_MODE,
-                                     &parser, &it);
+    int err = suit_cbor_subparse(&parser, bseq, &it);
     if (err < 0) {
         return err;
     }
+
     if (!cbor_value_is_array(&it)) {
         printf("Not an byte array\n");
         return -1;
@@ -418,5 +495,7 @@ int _handle_command_sequence(suit_v4_manifest_t *manifest, CborValue *bseq,
         cbor_value_advance(&map);
         cbor_value_leave_container(&arr, &map);
     }
+    cbor_value_leave_container(&it, &arr);
+
     return 0;
 }

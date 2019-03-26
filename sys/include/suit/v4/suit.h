@@ -26,6 +26,7 @@
 
 #include "cbor.h"
 #include "uuid.h"
+#include "riotboot/flashwrite.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -150,10 +151,13 @@ typedef struct {
     //CborValue components[SUIT_V4_COMPONENT_MAX];
     unsigned components_len;
     int component_current;
-
+    riotboot_flashwrite_t *writer;
+    char *urlbuf;
+    size_t urlbuf_len;
 } suit_v4_manifest_t;
 
-#define SIOT_MANIFEST_HAVE_COMPONENTS 0x1
+#define SUIT_MANIFEST_HAVE_COMPONENTS 0x1
+#define SUIT_MANIFEST_HAVE_IMAGE 0x2
 
 /**
  * @brief Parse a manifest
@@ -170,6 +174,8 @@ typedef struct {
  */
 int suit_v4_parse(suit_v4_manifest_t *manifest, const uint8_t *buf, size_t len);
 
+int suit_v4_policy_check(suit_v4_manifest_t *manifest);
+
 void suit_v4_init_conditions(void);
 uuid_t *suit_v4_get_vendor_id(void);
 uuid_t *suit_v4_get_class_id(void);
@@ -182,6 +188,10 @@ int suit_cbor_get_int(const CborValue *key, int *out);
 int suit_cbor_get_uint(const CborValue *key, unsigned *out);
 int suit_cbor_get_uint32(const CborValue *it, uint32_t *out);
 int suit_cbor_get_string(const CborValue *it, const uint8_t **buf, size_t *len);
+int suit_cbor_subparse(CborParser *parser, CborValue *bseq, CborValue *it);
+
+int suit_flashwrite_helper(void *arg, size_t offset, uint8_t *buf, size_t len,
+                    int more);
 
 #ifdef __cplusplus
 }

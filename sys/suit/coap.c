@@ -36,18 +36,17 @@
 #include "debug.h"
 
 #ifndef SUIT_COAP_STACKSIZE
-#define SUIT_COAP_STACKSIZE (THREAD_STACKSIZE_MEDIUM + FLASHPAGE_SIZE)
+#define SUIT_COAP_STACKSIZE (THREAD_STACKSIZE_LARGE + FLASHPAGE_SIZE)
 #endif
 
 #ifndef SUIT_COAP_PRIO
 #define SUIT_COAP_PRIO THREAD_PRIORITY_MAIN - 1
 #endif
 
-#define SUIT_URL_MAX 128
-#define SUIT_MANIFEST_BUFSIZE 512
-#define SUIT_MSG_TRIGGER 0x12345
+#define SUIT_URL_MAX            128
+#define SUIT_MANIFEST_BUFSIZE   512
+#define SUIT_MSG_TRIGGER        0x12345
 
-static int _suit_flashwrite(void *arg, size_t offset, uint8_t *buf, size_t len, int more);
 static char _stack[SUIT_COAP_STACKSIZE];
 static char _url[SUIT_URL_MAX];
 static uint8_t _manifest_buf[SUIT_MANIFEST_BUFSIZE];
@@ -62,6 +61,7 @@ static void _suit_handle_url(const char *url)
     if (size >= 0) {
         LOG_INFO("suit_coap: got manifest with size %u\n", (unsigned)size);
 
+        riotboot_flashwrite_t writer;
 #ifdef MODULE_SUIT_V1
         suit_v1_cbor_manifest_t manifest_v1;
         ssize_t res;
@@ -75,8 +75,22 @@ static void _suit_handle_url(const char *url)
             printf("suit_v1_cbor_get_url() failed res=%i\n", res);
             return;
         }
+
+        assert (res < SUIT_URL_MAX);
+        _url[res] = '\0';
+
+        LOG_INFO("suit_coap: got image URL(len=%u): \"%s\"\n", (unsigned)res, _url);
+        riotboot_flashwrite_init(&writer, riotboot_slot_other());
+        res = nanocoap_get_blockwise_url(_url, COAP_BLOCKSIZE_64, suit_flashwrite_helper,
+                                         &writer);
 #else
         suit_v4_manifest_t manifest;
+        memset(&writer, 0, sizeof(manifest));
+
+        manifest.writer = &writer;
+        manifest.urlbuf = _url;
+        manifest.urlbuf_len = SUIT_URL_MAX;
+
         ssize_t res;
         if ((res = suit_v4_parse(&manifest, _manifest_buf, size)) != SUIT_OK) {
             printf("suit_v4_parse() failed. res=%i\n", res);
@@ -84,18 +98,17 @@ static void _suit_handle_url(const char *url)
         }
 
         printf("suit_v4_parse() success\n");
-        return;
+        if (!(manifest.state & SUIT_MANIFEST_HAVE_IMAGE)) {
+            puts("manifest parsed, but no image fetched");
+            return;
+        }
+
+        res = suit_v4_policy_check(&manifest);
+        if (res) {
+            return;
+        }
 
 #endif
-        assert (res < SUIT_URL_MAX);
-        _url[res] = '\0';
-
-        LOG_INFO("suit_coap: got image URL(len=%u): \"%s\"\n", (unsigned)res, _url);
-        riotboot_flashwrite_t writer;
-        riotboot_flashwrite_init(&writer, riotboot_slot_other());
-        res = nanocoap_get_blockwise_url(_url, COAP_BLOCKSIZE_64, _suit_flashwrite,
-                                         &writer);
-
         if (res == 0) {
             LOG_INFO("suit_coap: finalizing image flash\n");
             riotboot_flashwrite_finish(&writer);
@@ -118,8 +131,8 @@ static void _suit_handle_url(const char *url)
     }
 }
 
-static int _suit_flashwrite(void *arg, size_t offset, uint8_t *buf, size_t len,
-                            int more)
+int suit_flashwrite_helper(void *arg, size_t offset, uint8_t *buf, size_t len,
+                    int more)
 {
     riotboot_flashwrite_t *writer = arg;
 
