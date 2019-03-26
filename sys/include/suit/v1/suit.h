@@ -145,6 +145,8 @@ uuid_t *suit_v1_get_class_id(void);
  */
 uuid_t *suit_v1_get_device_id(void);
 
+int suit_flashwrite_helper(void *arg, size_t offset, uint8_t *buf, size_t len,
+                    int more);
 #ifdef __cplusplus
 }
 #endif
