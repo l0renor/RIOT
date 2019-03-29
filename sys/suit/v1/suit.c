@@ -17,6 +17,7 @@
  * @}
  */
 
+#include "suit/conditions.h"
 #include "suit/v1/suit.h"
 #include "suit/v1/cbor.h"
 #include "uuid.h"
@@ -26,8 +27,6 @@
 #include "debug.h"
 
 #define SUIT_DEVID_BYTES 32
-
-static suit_v1_condition_params_t _conditions;
 
 static int _validate_uuid(const suit_v1_cbor_manifest_t *manifest,
                           size_t idx, uuid_t *uuid)
@@ -49,11 +48,11 @@ static int _validate_condition(const suit_v1_cbor_manifest_t *manifest,
 {
     switch (type) {
         case SUIT_COND_VENDOR_ID:
-            return _validate_uuid(manifest, idx, &_conditions.vendor);
+            return _validate_uuid(manifest, idx, suit_get_vendor_id());
         case SUIT_COND_CLASS_ID:
-            return _validate_uuid(manifest, idx, &_conditions.class);
+            return _validate_uuid(manifest, idx, suit_get_class_id());
         case SUIT_COND_DEV_ID:
-            return _validate_uuid(manifest, idx, &_conditions.device);
+            return _validate_uuid(manifest, idx, suit_get_device_id());
         case SUIT_COND_BEST_BEFORE:
             DEBUG("suit: best before condition not supported\n");
             return SUIT_ERR_UNSUPPORTED;
@@ -78,24 +77,6 @@ static int _validate_conditions(const suit_v1_cbor_manifest_t *manifest)
         idx++;
     }
     return SUIT_OK;
-}
-
-void suit_v1_init_conditions(void)
-{
-    /* Generate UUID's following the instructions from
-     * https://tools.ietf.org/html/draft-moran-suit-manifest-03#section-7.7.1
-     */
-    uuid_v5(&_conditions.vendor, &uuid_namespace_dns,
-            (uint8_t *)SUIT_VENDOR_DOMAIN, sizeof(SUIT_VENDOR_DOMAIN));
-
-    uuid_v5(&_conditions.class, &_conditions.vendor, (uint8_t *)SUIT_CLASS_ID,
-            sizeof(SUIT_CLASS_ID));
-
-    uint8_t devid[SUIT_DEVID_BYTES];
-    /* Use luid_base to ensure an identical ID independent of previous luid
-     * calls */
-    luid_base(devid, SUIT_DEVID_BYTES);
-    uuid_v5(&_conditions.device, &_conditions.vendor, devid, SUIT_DEVID_BYTES);
 }
 
 int suit_v1_parse(suit_v1_cbor_manifest_t *manifest, uint8_t *buf, size_t len)
@@ -132,19 +113,4 @@ int suit_v1_validate_manifest(const suit_v1_cbor_manifest_t *manifest,
         return res;
     }
     return SUIT_OK;
-}
-
-uuid_t *suit_v1_get_vendor_id(void)
-{
-    return &_conditions.vendor;
-}
-
-uuid_t *suit_v1_get_class_id(void)
-{
-    return &_conditions.class;
-}
-
-uuid_t *suit_v1_get_device_id(void)
-{
-    return &_conditions.device;
 }

@@ -71,27 +71,6 @@ typedef enum {
 } suit_v1_error_t;
 
 /**
- * @brief SUIT condition parameters
- */
-typedef struct {
-    uuid_t vendor;  /**< Vendor url as UUID                  */
-    uuid_t class;   /**< Device class UUID                   */
-    uuid_t device;  /**< Device specific information as UUID */
-} suit_v1_condition_params_t;
-
-/**
- * @brief Initialize boot-time conditions for SUIT manifests
- *
- * This initializes the device-based conditions for validating manifest
- * preconditions
- *
- * Vendor url as UUID:   UUID5(DNS_PREFIX, SUIT_VENDOR_DOMAIN)
- * Device class UUID:    UUID5(vendor, SUIT_CLASS_ID)
- * Device specific UUID: UUID5(vendor, Device ID)
- */
-void suit_v1_init_conditions(void);
-
-/**
  * @brief Parse a manifest
  *
  * @note The buffer is still required after parsing, please don't reuse the
@@ -124,26 +103,6 @@ int suit_v1_parse(suit_v1_cbor_manifest_t *manifest, uint8_t *buf, size_t len);
 int suit_v1_validate_manifest(const suit_v1_cbor_manifest_t *manifest,
                               uint32_t highest_seq_no);
 
-/**
- * @brief Retrieve the generated vendor ID
- *
- * @returns     The vendor ID as UUID
- */
-uuid_t *suit_v1_get_vendor_id(void);
-
-/**
- * @brief Retrieve the generated class ID
- *
- * @returns     The class ID as UUID
- */
-uuid_t *suit_v1_get_class_id(void);
-
-/**
- * @brief Retrieve the generated device ID
- *
- * @returns     The device ID as UUID
- */
-uuid_t *suit_v1_get_device_id(void);
 
 int suit_flashwrite_helper(void *arg, size_t offset, uint8_t *buf, size_t len,
                     int more);

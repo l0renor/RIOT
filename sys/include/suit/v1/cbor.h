@@ -84,16 +84,6 @@ extern "C" {
 #define SUIT_TINYCBOR_VALIDATION_MODE       CborValidateStrictMode
 
 /**
- * @brief SUIT conditionals
- */
-enum {
-    SUIT_COND_VENDOR_ID     = 1,    /**< Vendor ID match conditional */
-    SUIT_COND_CLASS_ID      = 2,    /**< Class ID match conditional */
-    SUIT_COND_DEV_ID        = 3,    /**< Device ID match conditional */
-    SUIT_COND_BEST_BEFORE   = 4,    /**< Best before conditional */
-};
-
-/**
  * @brief SUIT payload digest algorithms
  *
  * Unofficial list from
