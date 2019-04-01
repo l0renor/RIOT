@@ -124,7 +124,7 @@ int picocbor_enter_map(picocbor_value_t *it, picocbor_value_t *map);
 void picocbor_leave_container(picocbor_value_t *it, picocbor_value_t *array);
 int picocbor_get_null(picocbor_value_t *cvalue);
 int picocbor_get_bool(picocbor_value_t *cvalue, bool *value);
-int picocbor_skip_float(picocbor_value_t *cvalue);
+int picocbor_advance(picocbor_value_t *it);
 
 /**
  * @brief Write a CBOR boolean value into a buffer

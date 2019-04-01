@@ -55,11 +55,15 @@ bool picocbor_at_end(picocbor_value_t *it)
     }
 }
 
-/* Doesn't type check */
-static int _get_uint64(picocbor_value_t *cvalue, uint64_t *value)
+static int _get_uint64(picocbor_value_t *cvalue, uint64_t *value, uint8_t type)
 {
     uint64_t tmp = 0;
+    uint8_t ctype = _get_type(cvalue);
     unsigned bytelen = *cvalue->start & PICOCBOR_VALUE_MASK;
+
+    if (type != ctype) {
+        return PICOCBOR_ERR_INVALID_TYPE;
+    }
 
     if (bytelen < 24) {
         *value = bytelen;
@@ -79,10 +83,10 @@ static int _get_uint64(picocbor_value_t *cvalue, uint64_t *value)
     return 1 + bytes;
 }
 
-static int _get_uint32(picocbor_value_t *cvalue, uint32_t *value)
+static int _get_uint32(picocbor_value_t *cvalue, uint32_t *value, uint8_t type)
 {
     uint64_t tmp = 0;
-    int res = _get_uint64(cvalue, &tmp);
+    int res = _get_uint64(cvalue, &tmp, type);
 
     if (tmp <= UINT32_MAX) {
         *value = (uint32_t)tmp;
@@ -91,10 +95,10 @@ static int _get_uint32(picocbor_value_t *cvalue, uint32_t *value)
     return PICOCBOR_ERR_OVERFLOW;
 }
 
-static int _get_nint32(picocbor_value_t *cvalue, int32_t *value)
+static int _get_nint32(picocbor_value_t *cvalue, int32_t *value, uint8_t type)
 {
     uint64_t tmp = 0;
-    int res = _get_uint64(cvalue, &tmp);
+    int res = _get_uint64(cvalue, &tmp, type);
 
     if (tmp <= INT32_MAX) {
         *value = (-(int32_t)tmp) - 1;
@@ -120,52 +124,33 @@ static int _advance_if(picocbor_value_t *cvalue, int res)
 /* Includes check */
 int picocbor_get_uint32(picocbor_value_t *cvalue, uint32_t *value)
 {
-    uint8_t type = _get_type(cvalue);
-    int res = PICOCBOR_ERR_INVALID_TYPE;
-
-    if (type == PICOCBOR_MASK_UINT) {
-        res = _get_uint32(cvalue, value);
-    }
+    int res = _get_uint32(cvalue, value, PICOCBOR_MASK_UINT);
     return _advance_if(cvalue, res);
 }
 
 /* Read the int and advance past the int */
 int picocbor_get_int32(picocbor_value_t *cvalue, int32_t *value)
 {
-    uint8_t type = _get_type(cvalue);
-
-    int res = 0;
-
-    if (type == PICOCBOR_MASK_UINT) {
-        uint32_t intermediate = 0;
-        res = _get_uint32(cvalue, &intermediate);
-        *value = intermediate;
-    }
-    else if (type == PICOCBOR_MASK_NINT) {
-        res = _get_nint32(cvalue, value);
-    }
-    else {
-        return PICOCBOR_ERR_INVALID_TYPE;
+    uint32_t intermediate = 0;
+    int res = _get_uint32(cvalue, &intermediate, PICOCBOR_MASK_UINT);
+    *value = intermediate;
+    if (res == PICOCBOR_ERR_INVALID_TYPE) {
+        res = _get_nint32(cvalue, value, PICOCBOR_MASK_NINT);
     }
     return _advance_if(cvalue, res);
 }
 
 static int _get_str(picocbor_value_t *cvalue, const uint8_t **buf, size_t *len, uint8_t type)
 {
-    uint8_t ctype = _get_type(cvalue);
-
-    if (ctype != type) {
-        return PICOCBOR_ERR_INVALID_TYPE;
-    }
     uint64_t blen = 0;
-    int res = _get_uint64(cvalue, &blen);
+    int res = _get_uint64(cvalue, &blen, type);
     if (blen > SIZE_MAX) {
         return PICOCBOR_ERR_OVERFLOW;
     }
     if (cvalue->end - cvalue->start < (int64_t)blen) {
         return PICOCBOR_ERR_END;
     }
-    *len = blen;
+    *len = (size_t)blen;
     *buf = (cvalue->start);
     if (_advance_if(cvalue, res) < 0) {
         return res;
@@ -204,20 +189,7 @@ int picocbor_get_bool(picocbor_value_t *cvalue, bool *value)
     return PICOCBOR_ERR_INVALID_TYPE;
 }
 
-int picocbor_skip_float(picocbor_value_t *cvalue)
-{
-    uint8_t type = _get_type(cvalue);
-
-    if (type == PICOCBOR_MASK_FLOAT) {
-        uint64_t tmp;
-        int res = _get_uint64(cvalue, &tmp);
-        (void)tmp;
-        return _advance_if(cvalue, res);
-    }
-    return PICOCBOR_ERR_INVALID_TYPE;
-}
-
-int picocbor_enter_container(picocbor_value_t *it, picocbor_value_t *container)
+int _enter_container(picocbor_value_t *it, picocbor_value_t *container, uint8_t type)
 {
     container->end = it->end;
 
@@ -229,11 +201,11 @@ int picocbor_enter_container(picocbor_value_t *it, picocbor_value_t *container)
         container->remaining = UINT32_MAX;
     }
     else {
-        int res = _get_uint32(it, &container->remaining);
-        container->flags = PICOCBOR_DECODER_FLAG_CONTAINER;
+        int res = _get_uint32(it, &container->remaining, type);
         if (res < 0) {
             return res;
         }
+        container->flags = PICOCBOR_DECODER_FLAG_CONTAINER;
         container->start = it->start + res;
     }
     return PICOCBOR_OK;
@@ -241,22 +213,12 @@ int picocbor_enter_container(picocbor_value_t *it, picocbor_value_t *container)
 
 int picocbor_enter_array(picocbor_value_t *it, picocbor_value_t *array)
 {
-    uint8_t type = _get_type(it);
-
-    if (type != PICOCBOR_MASK_ARR) {
-        return PICOCBOR_ERR_INVALID_TYPE;
-    }
-    return picocbor_enter_container(it, array);
+    return _enter_container(it, array, PICOCBOR_MASK_ARR);
 }
 
 int picocbor_enter_map(picocbor_value_t *it, picocbor_value_t *map)
 {
-    uint8_t type = picocbor_get_type(it);
-
-    if (type != PICOCBOR_MASK_MAP) {
-        return PICOCBOR_ERR_INVALID_TYPE;
-    }
-    int res = picocbor_enter_container(it, map);
+    int res = _enter_container(it, map, PICOCBOR_MASK_MAP);
     if (map->remaining > UINT32_MAX / 2) {
         return PICOCBOR_ERR_OVERFLOW;
     }
@@ -272,20 +234,36 @@ void picocbor_leave_container(picocbor_value_t *it, picocbor_value_t *array)
     }
 }
 
-
-/* E_NOTIMPLEMENTED */
 int picocbor_advance(picocbor_value_t *it)
 {
+    /* Least significant bit is not relevant for handling */
     uint8_t type = _get_type(it);
-
+    int res = 0;
 
     if (type == PICOCBOR_MASK_BSTR || type == PICOCBOR_MASK_TSTR) {
         const uint8_t *tmp;
         size_t len;
-        if (_get_str(it, tmp, len) < 0) {
-            return PICOCBOR_ERR_END;
-        }
+        res = _get_str(it, &tmp, &len, type);
     }
     /* map or array */
-    return 0;
+    else if (type == PICOCBOR_MASK_ARR || type == PICOCBOR_MASK_MAP) {
+        picocbor_value_t recurse;
+        res = (type == PICOCBOR_MASK_MAP
+              ? picocbor_enter_map(it, &recurse)
+              : picocbor_enter_array(it, &recurse));
+        if (!(res < 0)) {
+            while (!picocbor_at_end(&recurse)) {
+                res = picocbor_advance(&recurse);
+                if (res < 0) {
+                    break;
+                }
+            }
+        }
+        picocbor_leave_container(it, &recurse);
+    }
+    else {
+        uint64_t tmp;
+        res = _advance_if(it, _get_uint64(it, &tmp, type));
+    }
+    return res;
 }
