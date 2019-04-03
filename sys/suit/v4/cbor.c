@@ -29,6 +29,8 @@
 #include "cbor.h"
 #include "cose/sign.h"
 
+#include "public_key.h"
+
 #include "log.h"
 
 #define ENABLE_DEBUG (0)
@@ -216,6 +218,7 @@ static int _manifest_handler(suit_v4_manifest_t *manifest, int key, CborValue *i
     (void)key;
     const uint8_t *manifest_buf;
     size_t manifest_len;
+
     suit_cbor_get_string(it, &manifest_buf, &manifest_len);
 
     /* Validate the COSE struct first now that we have the payload */
@@ -224,13 +227,20 @@ static int _manifest_handler(suit_v4_manifest_t *manifest, int key, CborValue *i
     /* Iterate over signatures, should only be a single signature */
     cose_sign_iter_t iter;
     cose_signature_t signature;
+
     cose_sign_iter_init(&manifest->cose, &iter);
     if (!cose_sign_iter(&iter, &signature)) {
         return SUIT_ERR_INVALID_MANIFEST;
     }
 
+    /* Initialize key from hardcoded public key */
+    cose_key_t pkey;
+    cose_key_init(&pkey);
+    cose_key_set_keys(&pkey, COSE_EC_CURVE_ED25519, COSE_ALGO_EDDSA,
+                      NULL, NULL, public_key);
+
     int verification = cose_sign_verify(&manifest->cose, &signature,
-            manifest->key, manifest->validation_buf, SUIT_COSE_BUF_SIZE);
+            &pkey, manifest->validation_buf, SUIT_COSE_BUF_SIZE);
     if (verification != 0) {
         return SUIT_ERR_SIGNATURE;
     }
