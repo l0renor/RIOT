@@ -256,6 +256,21 @@ static void _recv_setup(usbus_t *usbus, usbus_control_handler_t *handler)
 
     DEBUG("usbus_control: Received setup %x %x @ %d\n", pkt->type,
           pkt->request, pkt->length);
+    uint8_t destination = pkt->type & USB_SETUP_REQUEST_RECIPIENT_MASK;
+    /* Call handler */
+    int res = -1;
+    switch (destination) {
+        case USB_SETUP_REQUEST_RECIPIENT_DEVICE:
+            res = _recv_dev_setup(usbus, pkt);
+            break;
+        case USB_SETUP_REQUEST_RECIPIENT_INTERFACE:
+            res = _recv_interface_setup(usbus, pkt);
+            break;
+        default:
+            DEBUG("usbus_control: Unhandled setup request\n");
+    }
+
+    /* Determine next state */
     if (usb_setup_is_read(pkt)) {
         handler->setup_state = USBUS_SETUPRQ_INDATA;
     }
@@ -268,18 +283,6 @@ static void _recv_setup(usbus_t *usbus, usbus_control_handler_t *handler)
             handler->setup_state = USBUS_SETUPRQ_INACK;
             usbdev_ep_ready(handler->in, 0);
         }
-    }
-    uint8_t destination = pkt->type & USB_SETUP_REQUEST_RECIPIENT_MASK;
-    int res = 0;
-    switch (destination) {
-        case USB_SETUP_REQUEST_RECIPIENT_DEVICE:
-            res = _recv_dev_setup(usbus, pkt);
-            break;
-        case USB_SETUP_REQUEST_RECIPIENT_INTERFACE:
-            res = _recv_interface_setup(usbus, pkt);
-            break;
-        default:
-            DEBUG("usbus_control: Unhandled setup request\n");
     }
     if (res < 0) {
         /* Signal stall to indicate unsupported (USB 2.0 spec 9.6.2 */
@@ -356,14 +359,16 @@ static int _handle_tr_complete(usbus_t *usbus,
             break;
         case USBUS_SETUPRQ_OUTDATA:
             if (ep->dir == USB_EP_DIR_OUT) {
-                /* Ready in ZLP */
-                ep0_handler->setup_state = USBUS_SETUPRQ_INACK;
                 size_t len = 0;
                 usbdev_ep_get(ep, USBOPT_EP_AVAILABLE, &len, sizeof(size_t));
                 DEBUG("Expected len: %d, received: %d\n",
                       ep0_handler->setup.length, len);
+                _recv_setup(usbus, ep0_handler);
+                /* TODO: total len */
                 if (ep0_handler->setup.length == len) {
                     DEBUG("DATA complete\n");
+                    ep0_handler->setup_state = USBUS_SETUPRQ_INACK;
+                    /* Ready in ZLP */
                     usbdev_ep_ready(ep0_handler->in, 0);
                 }
                 /* Flush OUT buffer */
@@ -423,4 +428,15 @@ static void _handler_ep0_transfer(usbus_t *usbus, usbus_handler_t *handler,
         default:
             break;
     }
+}
+
+uint8_t *usbus_control_get_out_data(usbus_t *usbus, size_t *len)
+{
+    assert((int)usbus->state == (int)USBUS_SETUPRQ_OUTDATA);
+    assert(len);
+    usbus_control_handler_t *handler = (usbus_control_handler_t*)usbus->control;
+    usbdev_ep_t *ep_out = handler->out;
+    usbdev_ep_get(ep_out, USBOPT_EP_AVAILABLE,
+                  len, sizeof(size_t));
+    return ep_out->buf;
 }

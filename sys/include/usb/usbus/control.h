@@ -100,6 +100,18 @@ void usbus_control_slicer_ready(usbus_t *usbus);
  */
 int usbus_control_slicer_nextslice(usbus_t *usbus);
 
+/**
+ * @brief Retrieve the data from the OUT pipe of the control endpoint
+ *
+ * @pre usbus->state == USBUS_SETUPRQ_OUTDATA
+ *
+ * @param[in]   usbus       USBUS context
+ * @param[out]  len         Length of the data part
+ *
+ * @return                  pointer to the data buffer
+ */
+uint8_t *usbus_control_get_out_data(usbus_t *usbus, size_t *len);
+
 #ifdef __cplusplus
 }
 #endif
