@@ -73,20 +73,7 @@ size_t usbus_control_slicer_put_bytes(usbus_t *usbus, const uint8_t *buf,
 
 size_t usbus_control_slicer_put_char(usbus_t *usbus, char c)
 {
-    usbus_control_handler_t *ep0 = (usbus_control_handler_t *)usbus->control;
-    usbus_control_slicer_t *bldr = &ep0->slicer;
-    size_t end = bldr->start + ep0->in->len;
-
-    /* Only copy the char if it is within the window */
-    if ((bldr->start <=  bldr->cur) && (bldr->cur < end)) {
-        uint8_t *pos = ep0->in->buf + bldr->cur - bldr->start;
-        *pos = c;
-        bldr->cur++;
-        bldr->len++;
-        return 1;
-    }
-    bldr->cur++;
-    return 0;
+    return usbus_control_slicer_put_bytes(usbus, (uint8_t*)&c, sizeof(c));
 }
 
 void usbus_control_slicer_ready(usbus_t *usbus)
