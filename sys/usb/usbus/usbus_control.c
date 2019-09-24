@@ -77,17 +77,13 @@ static void _activate_endpoints(usbus_t *usbus)
     }
 }
 
-static size_t _cpy_str_to_utf16(usbus_t *usbus, const char *str)
+static  void _cpy_str_to_utf16(usbus_t *usbus, const char *str)
 {
-    size_t len = 0;
-
     while (*str) {
-        usbus_control_slicer_put_char(usbus, *str);
-        usbus_control_slicer_put_char(usbus, 0);
-        len += 2; /* Two bytes added each iteration */
+        uint8_t utf16_char[2] = { *str, 0 };
+        usbus_control_slicer_put_bytes(usbus, utf16_char, sizeof(utf16_char));
         str++;
     }
-    return len;
 }
 
 static usbus_string_t *_get_descriptor(usbus_t *usbus, uint16_t idx)
@@ -117,10 +113,11 @@ static int _req_str(usbus_t *usbus, uint16_t idx)
     /* Language ID must only be supported if there are string descriptors
      * available */
     if (usbus->strings) {
+        usb_descriptor_string_t desc;
+        desc.type = USB_TYPE_DESCRIPTOR_STRING;
+        desc.length = sizeof(usb_descriptor_string_t);
         if (idx == 0) {
-            usb_descriptor_string_t desc;
-            desc.type = USB_TYPE_DESCRIPTOR_STRING;
-            desc.length = sizeof(uint16_t) + sizeof(usb_descriptor_string_t);
+            desc.length += sizeof(uint16_t);
             usbus_control_slicer_put_bytes(usbus, (uint8_t *)&desc, sizeof(desc));
             /* Only one language ID supported */
             uint16_t us = USB_CONFIG_DEFAULT_LANGID;
@@ -128,11 +125,8 @@ static int _req_str(usbus_t *usbus, uint16_t idx)
             res = 1;
         }
         else {
-            usb_descriptor_string_t desc;
-            desc.type = USB_TYPE_DESCRIPTOR_STRING;
             usbus_string_t *str = _get_descriptor(usbus, idx);
             if (str) {
-                desc.length = sizeof(usb_descriptor_string_t);
                 desc.length += 2 * strlen(str->str); /* USB strings are UTF-16 */
                 usbus_control_slicer_put_bytes(usbus, (uint8_t *)&desc,
                                                sizeof(desc));
