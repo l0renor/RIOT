@@ -343,8 +343,6 @@ struct usbus_handler {
     struct usbus_handler *next;             /**< List of handlers (to be used by
                                                  @ref usbus_t) */
     const usbus_handler_driver_t *driver;   /**< driver for this handler */
-    usbus_interface_t *iface;               /**< Interface this handler belongs
-                                                 to */
     uint32_t flags;                         /**< Report flags */
 };
 
