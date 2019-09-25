@@ -63,8 +63,16 @@ ifneq (,$(filter newlib,$(USEMODULE)))
   include $(RIOTMAKE)/libc/newlib.mk
 endif
 
+ifneq (,$(filter picolibc,$(USEMODULE)))
+  include $(RIOTMAKE)/libc/picolibc.mk
+endif
+
 ifneq (,$(filter newlib_syscalls_default,$(USEMODULE)))
   include $(RIOTBASE)/sys/newlib_syscalls_default/Makefile.include
+endif
+
+ifneq (,$(filter picolibc_syscalls_default,$(USEMODULE)))
+  include $(RIOTBASE)/sys/picolibc_syscalls_default/Makefile.include
 endif
 
 ifneq (,$(filter arduino,$(USEMODULE)))
@@ -80,6 +88,18 @@ endif
 ifneq (,$(filter scanf_float,$(USEMODULE)))
   ifneq (,$(filter newlib_nano,$(USEMODULE)))
     export LINKFLAGS += -u _scanf_float
+  endif
+endif
+
+ifeq (,$(filter printf_float,$(USEMODULE)))
+  ifneq (,$(filter picolibc,$(USEMODULE)))
+    export CFLAGS += -DPICOLIBC_INTEGER_PRINTF_SCANF
+  endif
+endif
+
+ifeq (,$(filter scanf_float,$(USEMODULE)))
+  ifneq (,$(filter picolibc,$(USEMODULE)))
+    export CFLAGS += -DPICOLIBC_INTEGER_PRINTF_SCANF
   endif
 endif
 
