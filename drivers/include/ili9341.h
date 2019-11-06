@@ -179,6 +179,14 @@ void ili9341_invert_on(ili9341_t *dev);
  */
 void ili9341_invert_off(ili9341_t *dev);
 
+/**
+ * @brief   Set display brightness
+ *
+ * @param[in]   dev         device descriptor
+ * @param[in]   brightness  brightness value to set
+ */
+void ili9341_set_brightness(ili9341_t *dev, uint8_t brightness);
+
 #ifdef __cplusplus
 }
 #endif
