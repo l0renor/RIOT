@@ -26,14 +26,28 @@
 #include "cfg_clock_32_1.h"
 #include "cfg_i2c_default.h"
 #include "cfg_rtt_default.h"
-#include "cfg_spi_default.h"
 #include "cfg_timer_default.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* move on, nothing to see here */
+/**
+ * @name    SPI configuration
+ * @{
+ */
+static const spi_conf_t spi_config[] = {
+    {
+        .dev  = NRF_SPI0,
+        .sclk = GPIO_PIN(0, 2),
+        .mosi = GPIO_PIN(0, 3),
+        .miso = GPIO_PIN(0, 4),
+    }
+};
+
+#define SPI_NUMOF           ARRAY_SIZE(spi_config)
+/** @} */
+
 
 #ifdef __cplusplus
 }

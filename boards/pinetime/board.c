@@ -29,4 +29,10 @@ void board_init(void)
 {
     /* initialize the CPU */
     cpu_init();
+
+    gpio_init(VCC33, GPIO_OUT_PU);
+    gpio_init(BUTTON0_ENABLE, GPIO_OUT);
+    gpio_set(BUTTON0_ENABLE);
+    gpio_init(BUTTON0, GPIO_IN);
+    gpio_init(VIBRATOR, GPIO_OUT);
 }

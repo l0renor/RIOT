@@ -28,7 +28,32 @@
 extern "C" {
 #endif
 
-/* move on, nothing to see here */
+/*
+ * @brief LCD defines
+ * @{
+ */
+#define LCD_RS                      GPIO_PIN(0, 18)
+#define LCD_DET                     GPIO_PIN(0, 9)
+#define LCD_CS                      GPIO_PIN(0, 25)
+#define LCD_RESET                   GPIO_PIN(0, 26)
+
+#define LCD_BACKLIGHT_LOW           GPIO_PIN(0, 14)
+#define LCD_BACKLIGHT_MID           GPIO_PIN(0, 22)
+#define LCD_BACKLIGHT_HIGH          GPIO_PIN(0, 23)
+
+#define BUTTON0_ENABLE              GPIO_PIN(0, 13)
+#define BUTTON0                     GPIO_PIN(0, 15)
+#define VIBRATOR                    GPIO_PIN(0, 16)
+
+#define VCC33                       GPIO_PIN(0, 24)
+
+#define ILI9341_PARAM_SPI          SPI_DEV(0)
+#define ILI9341_PARAM_SPI_CLK      SPI_CLK_8MHZ
+#define ILI9341_PARAM_SPI_MODE     SPI_MODE_3
+#define ILI9341_PARAM_CS           LCD_CS
+#define ILI9341_PARAM_DCX          LCD_RS
+#define ILI9341_PARAM_RST          LCD_RESET
+/* @} */
 
 #ifdef __cplusplus
 }
