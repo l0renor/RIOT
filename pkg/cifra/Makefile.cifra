@@ -27,4 +27,8 @@ SRC += chacha20poly1305.c
 SRC += drbg.c
 SRC += ocb.c
 
+ifeq ($(CPU_ARCH), $(or cortex-m0plus, cortex-m0))
+  ASMSRC += arm/unacl/cortex_m0_mpy121666.s arm/unacl/cortex_m0_reduce25519.s arm/unacl/mul.s arm/unacl/sqr.s
+endif
+
 include $(RIOTBASE)/Makefile.base

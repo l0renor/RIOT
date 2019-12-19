@@ -1,2 +1,6 @@
 INCLUDES += -I$(PKGDIRBASE)/cifra/src
 INCLUDES += -I$(PKGDIRBASE)/cifra/src/ext
+
+ifeq ($(CPU_ARCH), $(or cortex-m0plus, cortex-m0))
+  CFLAGS += -DCORTEX_M0
+endif
