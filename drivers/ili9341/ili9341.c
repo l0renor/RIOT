@@ -301,6 +301,17 @@ void ili9341_invert_off(ili9341_t *dev)
 void ili9341_set_brightness(ili9341_t *dev, uint8_t brightness)
 {
     ili9341_write_cmd(dev, ILI9341_CMD_WRDISBV, &brightness, 1);
-    uint8_t param = 0x26;
+    static const uint8_t param = 0x2C;
     ili9341_write_cmd(dev, ILI9341_CMD_WRCTRLD, &param, 1);
+}
+
+void ili9341_sleep_mode(ili9341_t *dev, bool enable)
+{
+    if (enable) {
+        ili9341_write_cmd(dev, ILI9341_CMD_SPLIN, NULL, 0);
+    }
+    else {
+        ili9341_write_cmd(dev, ILI9341_CMD_SLPOUT, NULL, 0);
+        xtimer_usleep(5 * US_PER_MS);
+    }
 }
