@@ -56,6 +56,8 @@ extern "C" {
 #define ILI9341_PARAM_CS           LCD_CS
 #define ILI9341_PARAM_DCX          LCD_RS
 #define ILI9341_PARAM_RST          LCD_RESET
+#define ILI9341_PARAM_RGB          1
+#define ILI9341_PARAM_INVERTED     1
 /* @} */
 
 #ifdef __cplusplus
