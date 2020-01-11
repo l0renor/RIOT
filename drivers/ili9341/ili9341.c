@@ -127,7 +127,8 @@ int ili9341_init(ili9341_t *dev, const ili9341_params_t *params)
     _write_cmd(dev, ILI9341_CMD_VMCTRL2, command_params, 1);
 
     /* Memory access CTL */
-    command_params[0] = ILI9341_MADCTL_HORZ_FLIP | ILI9341_MADCTL_BGR;
+    command_params[0] = ILI9341_MADCTL_HORZ_FLIP;
+    command_params[0] |= dev->params->rgb ? 0 : ILI9341_MADCTL_BGR;
     _write_cmd(dev, ILI9341_CMD_MADCTL, command_params, 1);
 
     /* Frame control */
@@ -193,6 +194,10 @@ int ili9341_init(ili9341_t *dev, const ili9341_params_t *params)
         _write_cmd(dev, ILI9341_CMD_NGAMCTRL, gamma_neg,
                    sizeof(gamma_neg));
 
+    }
+
+    if (dev->params->inverted) {
+        ili9341_invert_on(dev);
     }
     /* Sleep out (turn off sleep mode) */
     _write_cmd(dev, ILI9341_CMD_SLPOUT, NULL, 0);
