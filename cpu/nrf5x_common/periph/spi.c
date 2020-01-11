@@ -117,7 +117,7 @@ void spi_release(spi_t bus)
     mutex_unlock(&locks[bus]);
 }
 
-#ifndef CPU
+#ifndef CPU_FAM_NRF51
 /**
  * @brief Work-around for transmitting 1 byte with SPIM.
  *
@@ -131,7 +131,7 @@ void spi_release(spi_t bus)
 static void _setup_workaround_for_ftpan_58(spi_t bus)
 {
     // Create an event when SCK toggles.
-    NRF_GPIOTE->CONFIG[bus] = (
+    NRF_GPIOTE->CONFIG[bus + 7] = (
         GPIOTE_CONFIG_MODE_Event <<
         GPIOTE_CONFIG_MODE_Pos
         ) | (
@@ -143,7 +143,7 @@ static void _setup_workaround_for_ftpan_58(spi_t bus)
         );
 
     // Stop the spim instance when SCK toggles.
-    NRF_PPI->CH[bus].EEP = (uint32_t)&NRF_GPIOTE->EVENTS_IN[bus];
+    NRF_PPI->CH[bus].EEP = (uint32_t)&NRF_GPIOTE->EVENTS_IN[bus + 7];
     NRF_PPI->CH[bus].TEP = (uint32_t)&dev(bus)->TASKS_STOP;
 }
 
