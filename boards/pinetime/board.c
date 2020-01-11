@@ -38,4 +38,7 @@ void board_init(void)
     gpio_init(LCD_BACKLIGHT_LOW, GPIO_OUT);
     gpio_init(LCD_BACKLIGHT_MID, GPIO_OUT);
     gpio_init(LCD_BACKLIGHT_HIGH, GPIO_OUT);
+    gpio_set(LCD_BACKLIGHT_HIGH);
+    gpio_set(LCD_BACKLIGHT_MID);
+    gpio_set(LCD_BACKLIGHT_LOW);
 }
