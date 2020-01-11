@@ -46,6 +46,9 @@ extern "C" {
 #define VIBRATOR                    GPIO_PIN(0, 16)
 
 #define VCC33                       GPIO_PIN(0, 24)
+#define POWER_PRESENCE              GPIO_PIN(0, 19)
+#define CHARGING_ACTIVE             GPIO_PIN(0, 12)
+#define BATTERY_ADC                 NRF52_AIN7
 
 #define ILI9341_PARAM_SPI          SPI_DEV(0)
 #define ILI9341_PARAM_SPI_CLK      SPI_CLK_8MHZ
