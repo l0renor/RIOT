@@ -4,4 +4,3 @@ USEMODULE += mtd_mapper
 USEMODULE += embunit
 
 include $(RIOTBASE)/Makefile.include
-
