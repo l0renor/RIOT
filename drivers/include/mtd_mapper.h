@@ -31,11 +31,7 @@
  * To define new regions with an existing MTD device the following is required:
  *
  * ```
- * mtd_mapper_parent_t parent = {
- *     .mtd = MTD_0,
- *     .mutex = MUTEX_INIT,
- *     .init = false,
- * };
+ * mtd_mapper_parent_t parent = MTD_PARENT_INIT(MTD_0);
  *
  * mtd_mapper_region_t region1 = {
  *     .mtd = {
