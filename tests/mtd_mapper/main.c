@@ -121,11 +121,7 @@ static mtd_dev_t dev = {
     .page_size = PAGE_SIZE,
 };
 
-static mtd_mapper_parent_t _parent = {
-    .mtd = &dev,
-    .lock = MUTEX_INIT,
-    .init = false,
-};
+static mtd_mapper_parent_t _parent = MTD_PARENT_INIT(&dev);
 
 static mtd_mapper_region_t _region_a = {
     .mtd = {

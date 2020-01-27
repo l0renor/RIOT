@@ -73,6 +73,17 @@ extern "C" {
 #endif
 
 /**
+ * @brief Shortcut macro for initializing the members of an
+ *        @ref mtd_mapper_parent_t struct
+ */
+#define MTD_PARENT_INIT(_parent) \
+{ \
+    .mtd = _parent, \
+    .lock = MUTEX_INIT, \
+    .init = false, \
+}
+
+/**
  * @brief MTD mapper backing device context
  */
 typedef struct {
