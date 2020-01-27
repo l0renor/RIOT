@@ -213,7 +213,7 @@ static void test_mtd_write(void)
     /* Check second region, should still be 0xFF */
     for (uint32_t i = 0; i < REGION_FLASH_SIZE; i += PAGE_SIZE) {
         mtd_read(_dev_b, _buffer, i, PAGE_SIZE);
-        _test_mem(_buffer, PAGE_SIZE, 0xff);
+        _test_mem(_buffer, PAGE_SIZE, 0xFF);
     }
 
     static const uint8_t test_val_b = 0xBB;
@@ -222,6 +222,12 @@ static void test_mtd_write(void)
     /* Write second region */
     for (uint32_t i = 0; i < REGION_FLASH_SIZE; i += PAGE_SIZE) {
         mtd_write(_dev_b, _buffer, i, PAGE_SIZE);
+    }
+
+    /* Check second region after write, should now be 0xBB */
+    for (uint32_t i = 0; i < REGION_FLASH_SIZE; i += PAGE_SIZE) {
+        mtd_read(_dev_b, _buffer, i, PAGE_SIZE);
+        _test_mem(_buffer, PAGE_SIZE, 0xBB);
     }
 
     /* Check first region, should still be 0xAA */
