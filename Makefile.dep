@@ -424,7 +424,7 @@ ifneq (,$(filter newlib,$(USEMODULE)))
   ifeq (,$(filter newlib_syscalls_%,$(USEMODULE)))
     USEMODULE += newlib_syscalls_default
   endif
-  ifeq (,$(filter stdio_cdc_acm stdio_native stdio_null stdio_rtt,$(USEMODULE)))
+  ifeq (,$(filter stdio_cdc_acm stdio_native stdio_null stdio_rtt stdio_semihosting,$(USEMODULE)))
     USEMODULE += stdio_uart
   endif
 endif
@@ -456,6 +456,11 @@ ifneq (,$(filter stdio_ethos,$(USEMODULE)))
   USEMODULE += stdio_uart
 endif
 
+ifneq (,$(filter stdio_semihosting,$(USEMODULE)))
+  USEMODULE += xtimer
+  FEATURES_REQUIRED += arch_cortexm
+endif
+
 ifneq (,$(filter stdin,$(USEMODULE)))
   ifneq (,$(filter stdio_uart,$(USEMODULE)))
     USEMODULE += stdio_uart_rx
@@ -471,7 +476,7 @@ ifneq (,$(filter stdio_uart,$(USEMODULE)))
   FEATURES_REQUIRED += periph_uart
 endif
 
-ifneq (,$(filter stdio_cdc_acm stdio_null stdio_uart,$(USEMODULE)))
+ifneq (,$(filter stdio_cdc_acm stdio_null stdio_uart stdio_semihosting,$(USEMODULE)))
   # stdio_rtt cannot be used when another STDIO is loaded
   DISABLE_MODULE += stdio_rtt
 endif
