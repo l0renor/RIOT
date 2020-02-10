@@ -9,11 +9,9 @@
  */
 
 /**
- * @defgroup    sys_suit SUIT secure firmware updates
- * @ingroup     sys
+ * @defgroup    sys_suit_coap SUIT secure firmware updates over CoAP
+ * @ingroup     sys_suit
  * @brief       SUIT secure firmware updates
- *
- * @experimental
  *
  * @{
  *
