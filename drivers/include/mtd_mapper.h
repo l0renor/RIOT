@@ -7,7 +7,7 @@
  */
 
 /**
- * @defgroup    drivers_mtd_mapper  MTD addres mapper
+ * @defgroup    drivers_mtd_mapper  MTD address mapper
  * @ingroup     drivers_storage
  * @brief       Driver for address remap for flash devices
  *
