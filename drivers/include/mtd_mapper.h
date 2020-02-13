@@ -97,6 +97,9 @@ typedef struct {
     uint32_t offset;                /**< Offset address to start this region */
 } mtd_mapper_region_t;
 
+/**
+ * @brief Mapper MTD device operations table
+ */
 extern const mtd_desc_t mtd_mapper_driver;
 
 #ifdef __cplusplus
