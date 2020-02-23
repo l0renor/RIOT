@@ -88,6 +88,7 @@ typedef enum {
  */
 typedef struct {
     cst816s_gesture_t gesture;  /**< Detected gesture */
+    cst816s_touch_t action;     /**< Press or release event */
     uint16_t x;                 /**< X coordinate */
     uint16_t y;                 /**< Y coordinate */
 } cst816s_touch_data_t;
